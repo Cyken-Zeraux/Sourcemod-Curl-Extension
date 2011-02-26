@@ -2,8 +2,16 @@
 #define _INCLUDE_SOURCEMOD_EXTENSION_CURLMANAGER_H_
 
 #include "extension.h"
+#include "curlthread.h"
 #include <sh_list.h>
 #include <curl/curl.h>
+
+struct cURL_slist_pack {
+	cURL_slist_pack():chunk(NULL)
+	{
+	}
+	curl_slist *chunk;
+};
 
 struct cURLOpt_string {
 	CURLoption opt;
@@ -26,15 +34,10 @@ struct cURLOpt_pointer {
 };
 
 struct cURLHandle {
-	cURLHandle()
+	cURLHandle():curl(NULL),running(false),lasterror(CURLE_OK),opt_loaded(false),
+		callback_Function(NULL)
 	{
 		memset(errorBuffer,0,sizeof(errorBuffer));
-		curl = NULL;
-		running = false;
-		lasterror = CURLE_OK;
-		opt_loaded = false;
-		callback_Function = NULL;
-		pFile = NULL;
 	}
 	CURL *curl;
 	char errorBuffer[CURL_ERROR_SIZE];
@@ -47,7 +50,14 @@ struct cURLHandle {
 	bool opt_loaded;
 	IPluginFunction *callback_Function;
 	Handle_t hndl;
-	FILE *pFile;
+};
+
+struct WebForm {
+	WebForm():first(NULL), last(NULL)
+	{
+	}
+	curl_httppost *first;
+	curl_httppost *last;
 };
 
 
@@ -58,24 +68,11 @@ public:
 	bool AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *value);
 	bool AddcURLOptionInt(cURLHandle *handle, CURLoption opt, int value);
 	bool AddcURLOptionInt64(cURLHandle *handle, CURLoption opt, long long value);
-	bool AddcURLOptionHandle(cURLHandle *handle, HandleSecurity *sec, CURLoption opt, Handle_t hndl);
+	bool AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *handle, HandleSecurity *sec, CURLoption opt, Handle_t hndl);
 	void LoadcURLOption(cURLHandle *handle);
-};
-
-
-class cURLThread :
-	public IThread
-{
-public:
-	cURLThread(cURLHandle *_handle);
-	cURLHandle *GetHandle();
 
 public:
-	void RunThread(IThreadHandle *pHandle);
-	void OnTerminate(IThreadHandle *pHandle, bool cancel);
-
-private:
-	cURLHandle *handle;
+	CURLFORMcode cURLFormAdd(IPluginContext *pContext, const cell_t *params, WebForm *handle);
 };
 
 extern cURLManager g_cURLManager;

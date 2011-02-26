@@ -31,7 +31,6 @@
 
 #include "extension.h"
 #include "curlmanager.h"
-#include "webform.h"
 #include <curl/curl.h>
 
 
@@ -44,6 +43,7 @@ extern sp_nativeinfo_t g_cURLNatives[];
 HandleType_t g_cURLHandle = 0;
 HandleType_t g_cURLFile = 0;
 HandleType_t g_WebForm = 0;
+HandleType_t g_cURLSlist = 0;
 
 IdentityToken_t *myself_Identity = NULL;
 
@@ -62,11 +62,12 @@ bool cURL_SM::SDK_OnLoad(char *error, size_t maxlength, bool late)
 
 	bool valid = true;
 
-	HandleError err_file, err_handle, err_webform;
+	HandleError err_file, err_handle, err_webform, err_slist;
 	g_cURLFile = handlesys->CreateType("cURLFile", this, 0, NULL, NULL, myself_Identity, &err_file);
 	g_cURLHandle = handlesys->CreateType("cURLHandle", this, 0, NULL, NULL, myself_Identity, &err_handle);
 	g_WebForm = handlesys->CreateType("cURLWebForm", this, 0, NULL, NULL, myself_Identity, &err_webform);
-
+	g_cURLSlist = handlesys->CreateType("cURLSlist", this, 0, NULL, NULL, myself_Identity, &err_slist);
+	
 	if(g_cURLFile == 0)
 	{
 		handlesys->RemoveType(g_cURLFile, myself_Identity);
@@ -91,6 +92,14 @@ bool cURL_SM::SDK_OnLoad(char *error, size_t maxlength, bool late)
 		valid = false;
 	}
 
+	if(g_cURLSlist == 0)
+	{
+		handlesys->RemoveType(g_cURLSlist, myself_Identity);
+		g_cURLSlist = 0;
+		snprintf(error, maxlength, "Could not create CURL Slist type (err: %d)", err_slist);
+		valid = false;
+	}
+
 
 	if(!valid)
 		return false;
@@ -99,6 +108,10 @@ bool cURL_SM::SDK_OnLoad(char *error, size_t maxlength, bool late)
 
 	curl_version_info_data *vinfo = curl_version_info(CURLVERSION_NOW);
 	
+	int ff = vinfo->features;
+	if(ff & CURL_VERSION_TLSAUTH_SRP)
+		int ggg = 1;
+
 	return true;
 }
 
@@ -109,7 +122,11 @@ void cURL_SM::SDK_OnUnload()
 
 void cURL_SM::SDK_OnAllLoaded()
 {
+}
 
+bool cURL_SM::QueryRunning(char *error, size_t maxlength)
+{
+	return true;
 }
 
 void cURL_SM::OnHandleDestroy(HandleType_t type, void *object)
@@ -121,7 +138,12 @@ void cURL_SM::OnHandleDestroy(HandleType_t type, void *object)
 		FILE *fp = (FILE *)object;
 		fclose(fp);
 	} else if(type == g_WebForm) {
-		WebForm *webform = (WebForm *)object;
-		delete webform;
+		WebForm *httpost = (WebForm *)object;
+		curl_formfree(httpost->first);
+		delete httpost;
+	} else if(type == g_cURLSlist) {
+		cURL_slist_pack *slist = (cURL_slist_pack *)object;
+		curl_slist_free_all(slist->chunk); 
+		delete slist;
 	}
 }

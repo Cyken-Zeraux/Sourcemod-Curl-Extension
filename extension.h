@@ -33,7 +33,7 @@
 #define _INCLUDE_SOURCEMOD_EXTENSION_PROPER_H_
 
 #include "smsdk_ext.h"
-
+#include <assert.h>
 
 class cURL_SM :
 	public SDKExtension,
@@ -43,6 +43,7 @@ public:
 	virtual bool SDK_OnLoad(char *error, size_t maxlength, bool late);
 	virtual void SDK_OnUnload();
 	virtual void SDK_OnAllLoaded();
+	virtual bool QueryRunning(char *error, size_t maxlength);
 
 public:
 	void OnHandleDestroy(HandleType_t type, void *object);
@@ -51,7 +52,7 @@ public:
 extern HandleType_t g_cURLHandle;
 extern HandleType_t g_cURLFile;
 extern HandleType_t g_WebForm;
-
+extern HandleType_t g_cURLSlist;
 
 extern IdentityToken_t *myself_Identity ;
 

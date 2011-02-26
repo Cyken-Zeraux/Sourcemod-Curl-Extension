@@ -1,7 +1,6 @@
 
 #include "extension.h"
 #include "curlmanager.h"
-#include "webform.h"
 #include <curl/curl.h>
 
 #define SETUP_CURL_HANDLE()\
@@ -18,6 +17,15 @@
 	HandleError err;\
 	HandleSecurity sec(pContext->GetIdentity(), myself_Identity);\
 	if((err = handlesys->ReadHandle(params[1], g_WebForm, &sec, (void **)&handle)) != HandleError_None)\
+	{\
+		return pContext->ThrowNativeError("Invalid Handle %x (error %d)", params[1], err);\
+	}
+
+#define SETUP_CURL_SLIST()\
+	cURL_slist_pack *handle;\
+	HandleError err;\
+	HandleSecurity sec(pContext->GetIdentity(), myself_Identity);\
+	if((err = handlesys->ReadHandle(params[1], g_cURLSlist, &sec, (void **)&handle)) != HandleError_None)\
 	{\
 		return pContext->ThrowNativeError("Invalid Handle %x (error %d)", params[1], err);\
 	}
@@ -56,14 +64,14 @@ static cell_t sm_curl_easy_setopt_string(IPluginContext *pContext, const cell_t 
 	return g_cURLManager.AddcURLOptionString(handle, (CURLoption)params[2], buffer);
 }
 
-static cell_t sm_curl_easy_setopt_Int(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_easy_setopt_int(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
 
 	return g_cURLManager.AddcURLOptionInt(handle, (CURLoption)params[2], params[3]);
 }
 
-static cell_t sm_curl_easy_setopt_Int_multi(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_easy_setopt_int_array(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
 
@@ -87,7 +95,7 @@ static cell_t sm_curl_easy_setopt_Int_multi(IPluginContext *pContext, const cell
 	return valid;
 }
 
-static cell_t sm_curl_easy_setopt_Int64(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_easy_setopt_int64(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
 
@@ -102,7 +110,7 @@ static cell_t sm_curl_easy_setopt_handle(IPluginContext *pContext, const cell_t 
 {
 	SETUP_CURL_HANDLE();
 
-	return g_cURLManager.AddcURLOptionHandle(handle, &sec, (CURLoption)params[2], params[3]);
+	return g_cURLManager.AddcURLOptionHandle(pContext, handle, &sec, (CURLoption)params[2], params[3]);
 }
 
 static cell_t sm_curl_easy_perform_thread(IPluginContext *pContext, const cell_t *params)
@@ -197,6 +205,14 @@ static cell_t sm_curl_load_opt(IPluginContext *pContext, const cell_t *params)
 	return handle->lasterror;
 }
 
+static cell_t sm_curl_get_error_buffer(IPluginContext *pContext, const cell_t *params)
+{
+	SETUP_CURL_HANDLE();
+	
+	pContext->StringToLocalUTF8(params[2], params[3], handle->errorBuffer, NULL);
+	return 1;
+}
+
 static cell_t sm_curl_easy_escape(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
@@ -275,7 +291,7 @@ static cell_t sm_curl_OpenFile(IPluginContext *pContext, const cell_t *params)
 	return handlesys->CreateHandle(g_cURLFile, pFile, pContext->GetIdentity(), myself_Identity, NULL);
 }
 
-static cell_t sm_curl_CreateForm(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_httppost(IPluginContext *pContext, const cell_t *params)
 {
 	WebForm *handle = new WebForm();
 	Handle_t hndl = handlesys->CreateHandle(g_WebForm, handle, pContext->GetIdentity(), myself_Identity, NULL);
@@ -287,37 +303,72 @@ static cell_t sm_curl_CreateForm(IPluginContext *pContext, const cell_t *params)
 	return hndl;
 }
 
-static cell_t sm_curl_FormAddString(IPluginContext *pContext, const cell_t *params)
+/*
+static cell_t sm_curl_formadd_string(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_WEBFORM();
 
+	CURLformoption form_opt_1 = (CURLformoption)params[2];
+	CURLformoption form_opt_2 = (CURLformoption)params[4];
+
 	char *name;
-	pContext->LocalToString(params[2], &name);
+	pContext->LocalToString(params[3], &name);
 
 	char *data;
-	pContext->LocalToString(params[3], &data);
+	pContext->LocalToString(params[5], &data);
 
-	switch(params[4])
-	{
-		case CURL_WEBFORM_FILE:
-		{
-			char realpath[PLATFORM_MAX_PATH];
-			g_pSM->BuildPath(Path_Game, realpath, sizeof(realpath), "%s", data);
-			return handle->AddString(name, realpath, CURLFORM_FILE);
-		}
-		default:
-			return handle->AddString(name, data, CURLFORM_COPYCONTENTS);
-	} 
+	cell_t *addr;
+	pContext->LocalToPhysAddr(params[6], &addr);
+
+	CURLFORMcode lastError = CURL_FORMADD_OK;
+
+	bool supported = handle->AddString(form_opt_1, name, form_opt_2, data, &lastError);
+
+	*addr = (cell_t)lastError;
+
+	return supported;
+}
+*/
+
+
+
+static cell_t sm_curl_formadd(IPluginContext *pContext, const cell_t *params)
+{
+	SETUP_CURL_WEBFORM();
+
+	return (cell_t)g_cURLManager.cURLFormAdd(pContext, params, handle);
 }
 
+static cell_t sm_curl_slist_append(IPluginContext *pContext, const cell_t *params)
+{
+	SETUP_CURL_SLIST();
+	
+	char *data;
+	pContext->LocalToString(params[2], &data);
+
+	handle->chunk = curl_slist_append(handle->chunk, data);
+	return 1;
+}
+
+static cell_t sm_curl_slist(IPluginContext *pContext, const cell_t *params)
+{
+	cURL_slist_pack *handle = new cURL_slist_pack();
+	Handle_t hndl = handlesys->CreateHandle(g_cURLSlist, handle, pContext->GetIdentity(), myself_Identity, NULL);
+	if(!hndl)
+	{
+		delete handle;
+		return BAD_HANDLE;
+	}
+	return hndl;
+}
 
 sp_nativeinfo_t g_cURLNatives[] = 
 { 
 	{"curl_easy_init",				sm_curl_easy_init},
 	{"curl_easy_setopt_string",		sm_curl_easy_setopt_string},
-	{"curl_easy_setopt_Int",		sm_curl_easy_setopt_Int},
-	{"curl_easy_setopt_Int_multi",	sm_curl_easy_setopt_Int_multi},
-	{"curl_easy_setopt_Int64",		sm_curl_easy_setopt_Int64},
+	{"curl_easy_setopt_int",		sm_curl_easy_setopt_int},
+	{"curl_easy_setopt_int_array",	sm_curl_easy_setopt_int_array},
+	{"curl_easy_setopt_int64",		sm_curl_easy_setopt_int64},
 	{"curl_easy_setopt_handle",		sm_curl_easy_setopt_handle},
 	{"curl_easy_perform_thread",	sm_curl_easy_perform_thread},
 	{"curl_easy_perform",			sm_curl_easy_perform},
@@ -327,10 +378,15 @@ sp_nativeinfo_t g_cURLNatives[] =
 	{"curl_easy_escape",			sm_curl_easy_escape},
 	{"curl_easy_unescape",			sm_curl_easy_unescape},
 	{"curl_easy_strerror",			sm_curl_easy_strerror},
+	{"curl_get_error_buffer",		sm_curl_get_error_buffer},
 	{"curl_version",				sm_curl_version},
 	{"curl_features",				sm_curl_features},
 	{"curl_OpenFile",				sm_curl_OpenFile},
-	{"curl_CreateForm",				sm_curl_CreateForm},
-	{"curl_FormAddString",			sm_curl_FormAddString},
+
+	{"curl_httppost",				sm_curl_httppost},
+	{"curl_formadd",				sm_curl_formadd},
+
+	{"curl_slist_append",			sm_curl_slist_append},
+	{"curl_slist",					sm_curl_slist},
 	{NULL,							NULL}
 };
