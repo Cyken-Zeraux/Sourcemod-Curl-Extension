@@ -1,6 +1,7 @@
 
 #include "extension.h"
 #include "curlmanager.h"
+#include <sh_string.h>
 #include <curl/curl.h>
 
 #define SETUP_CURL_HANDLE()\
@@ -122,10 +123,12 @@ static cell_t sm_curl_easy_perform_thread(IPluginContext *pContext, const cell_t
 	{
 		return pContext->ThrowNativeError("Invalid function %x", params[2]);
 	}
-	
-	handle->callback_Function = pFunction;
-	cURLThread *thread = new cURLThread(handle);
-	threader->MakeThread(thread);
+
+	handle->UserData[0] = params[3];	
+	handle->callback_Function[cURLThread_Func_Complete] = pFunction;
+	cURLThread *thread = new cURLThread(handle, cURLThread_Type_Perform);
+	g_cURLManager.MakecURLThread(thread);
+	//threader->MakeThread(thread);
 	return 1;
 }
 
@@ -134,47 +137,42 @@ static cell_t sm_curl_easy_perform(IPluginContext *pContext, const cell_t *param
 	SETUP_CURL_HANDLE();
 	
 	handle->running = true;
-	return curl_easy_perform(handle->curl);
+	CURLcode code = curl_easy_perform(handle->curl);
+	curl_easy_getinfo(handle->curl, CURLINFO_LASTSOCKET, &handle->sockextr);
+
+	return code;
 }
 
 static cell_t sm_curl_easy_getinfo_string(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
 	
-	int type = CURLINFO_TYPEMASK & (int)params[2];
+	int type = (CURLINFO_TYPEMASK & (int)params[2]);
 
 	CURLcode code = CURLE_BAD_FUNCTION_ARGUMENT;
-	switch(type)
+	if(type == CURLINFO_STRING)
 	{
-		case CURLINFO_STRING:
-			char *string_buffer;
-			code = curl_easy_getinfo(handle->curl, (CURLINFO)params[2], &string_buffer);
-			if(code == CURLE_OK)
-			{
-				pContext->StringToLocalUTF8(params[3], params[4], string_buffer, NULL);
-			}
-			break;
-		case CURLINFO_SLIST:
-			curl_slist engines; 
-			code = curl_easy_getinfo(handle->curl, (CURLINFO)params[2], &engines);
-			if(code == CURLE_OK)
-			{
-				int i = 0;
-			}
-			break;
+		char *string_buffer;
+		code = curl_easy_getinfo(handle->curl, (CURLINFO)params[2], &string_buffer);
+		if(code == CURLE_OK)
+		{
+			pContext->StringToLocalUTF8(params[3], params[4], string_buffer, NULL);
+		}
 	}
 
 	return code;
 }
 
-static cell_t sm_curl_easy_getinfo(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_easy_getinfo_int(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
 
-	int type = CURLINFO_TYPEMASK & (int)params[2];
+	int type = (CURLINFO_TYPEMASK & (int)params[2]);
+
 	cell_t *addr;
 	pContext->LocalToPhysAddr(params[3], &addr);
 	CURLcode code = CURLE_BAD_FUNCTION_ARGUMENT;
+
 	switch(type)
 	{
 		case CURLINFO_LONG:
@@ -253,6 +251,66 @@ static cell_t sm_curl_easy_strerror(IPluginContext *pContext, const cell_t *para
 	return 1;
 }
 
+/* send & recv */
+static cell_t sm_curl_easy_send_recv(IPluginContext *pContext, const cell_t *params)
+{
+	SETUP_CURL_HANDLE();
+
+	IPluginFunction *pFunction_send = pContext->GetFunctionById(params[2]);
+	if(!pFunction_send)
+	{
+		return pContext->ThrowNativeError("Invalid function %x", params[2]);
+	}
+	
+	IPluginFunction *pFunction_recv = pContext->GetFunctionById(params[3]);
+	if(!pFunction_recv)
+	{
+		return pContext->ThrowNativeError("Invalid function %x", params[3]);
+	}
+	
+	IPluginFunction *pFunction_senc_recv_complete = pContext->GetFunctionById(params[4]);
+	if(!pFunction_senc_recv_complete)
+	{
+		return pContext->ThrowNativeError("Invalid function %x", params[4]);
+	}
+	
+	IPluginFunction *pFunction_complete = pContext->GetFunctionById(params[5]);
+	if(!pFunction_complete)
+	{
+		return pContext->ThrowNativeError("Invalid function %x", params[5]);
+	}
+
+	handle->timeout = (long)params[6];
+	handle->UserData[1] = params[8];	
+	handle->callback_Function[cURLThread_Func_Send] = pFunction_send;
+	handle->callback_Function[cURLThread_Func_Recv] = pFunction_recv;
+	handle->callback_Function[cURLThread_Func_Send_Recv_Complete] = pFunction_senc_recv_complete;
+	handle->callback_Function[cURLThread_Func_Complete] = pFunction_complete;	
+	cURLThread *thread = new cURLThread(handle, cURLThread_Type_Send_Recv);
+	thread->SetRecvBufferSize((unsigned int)params[7]);
+
+	g_cURLManager.MakecURLThread(thread);
+
+	//threader->MakeThread(thread);
+	return 1;
+}
+
+static cell_t sm_curl_set_send_buffer(IPluginContext *pContext, const cell_t *params)
+{
+	SETUP_CURL_HANDLE();
+
+	pContext->LocalToString(params[2], &handle->send_buffer);
+	return 1;
+}
+
+
+
+
+
+
+
+
+/* Stuff */
 static cell_t sm_curl_version(IPluginContext *pContext, const cell_t *params)
 {
 	pContext->StringToLocalUTF8(params[1], params[2], curl_version(), NULL);
@@ -263,6 +321,21 @@ static cell_t sm_curl_features(IPluginContext *pContext, const cell_t *params)
 {
 	curl_version_info_data *vinfo = curl_version_info(CURLVERSION_NOW);
 	return vinfo->features;
+}
+
+static cell_t sm_curl_protocols(IPluginContext *pContext, const cell_t *params)
+{
+	curl_version_info_data *vinfo = curl_version_info(CURLVERSION_NOW);
+
+	SourceHook::String buffer;
+	const char * const *proto;
+	for(proto=vinfo->protocols; *proto; ++proto) {
+		buffer.append(*proto);
+		buffer.append(" ");
+    }
+	buffer.trim();
+	pContext->StringToLocalUTF8(params[1], params[2], buffer.c_str(), NULL);
+	return 1;
 }
 
 static cell_t sm_curl_OpenFile(IPluginContext *pContext, const cell_t *params)
@@ -302,35 +375,6 @@ static cell_t sm_curl_httppost(IPluginContext *pContext, const cell_t *params)
 	}
 	return hndl;
 }
-
-/*
-static cell_t sm_curl_formadd_string(IPluginContext *pContext, const cell_t *params)
-{
-	SETUP_CURL_WEBFORM();
-
-	CURLformoption form_opt_1 = (CURLformoption)params[2];
-	CURLformoption form_opt_2 = (CURLformoption)params[4];
-
-	char *name;
-	pContext->LocalToString(params[3], &name);
-
-	char *data;
-	pContext->LocalToString(params[5], &data);
-
-	cell_t *addr;
-	pContext->LocalToPhysAddr(params[6], &addr);
-
-	CURLFORMcode lastError = CURL_FORMADD_OK;
-
-	bool supported = handle->AddString(form_opt_1, name, form_opt_2, data, &lastError);
-
-	*addr = (cell_t)lastError;
-
-	return supported;
-}
-*/
-
-
 
 static cell_t sm_curl_formadd(IPluginContext *pContext, const cell_t *params)
 {
@@ -373,14 +417,19 @@ sp_nativeinfo_t g_cURLNatives[] =
 	{"curl_easy_perform_thread",	sm_curl_easy_perform_thread},
 	{"curl_easy_perform",			sm_curl_easy_perform},
 	{"curl_easy_getinfo_string",	sm_curl_easy_getinfo_string},
-	{"curl_easy_getinfo",			sm_curl_easy_getinfo},
+	{"curl_easy_getinfo_int",		sm_curl_easy_getinfo_int},
 	{"curl_load_opt",				sm_curl_load_opt},
 	{"curl_easy_escape",			sm_curl_easy_escape},
 	{"curl_easy_unescape",			sm_curl_easy_unescape},
 	{"curl_easy_strerror",			sm_curl_easy_strerror},
 	{"curl_get_error_buffer",		sm_curl_get_error_buffer},
+
+	{"curl_easy_send_recv",			sm_curl_easy_send_recv},
+	{"curl_set_send_buffer",		sm_curl_set_send_buffer},
+
 	{"curl_version",				sm_curl_version},
 	{"curl_features",				sm_curl_features},
+	{"curl_protocols",				sm_curl_protocols},
 	{"curl_OpenFile",				sm_curl_OpenFile},
 
 	{"curl_httppost",				sm_curl_httppost},

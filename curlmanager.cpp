@@ -13,6 +13,44 @@ static size_t curl_write_function(void *ptr, size_t bytes, size_t nmemb, void *s
 	return bytes * nmemb;
 }
 
+void cURLManager::SDK_OnLoad()
+{
+	curlhandle_list_mutex = threader->MakeMutex();
+	shutdown = false;
+}
+
+void cURLManager::SDK_OnUnload()
+{
+	if(g_cURLThread_List.size() > 0)
+	{
+		int gggg = 0;
+	}
+
+
+
+}
+
+void cURLManager::MakecURLThread(cURLThread *thread)
+{
+	if(shutdown)
+	{
+		delete thread;
+		return;
+	}
+	curlhandle_list_mutex->Lock();
+	g_cURLThread_List.push_back(thread);
+	curlhandle_list_mutex->Unlock();
+
+	threader->MakeThread(thread);
+}
+
+void cURLManager::RemovecURLThread(cURLThread *thread)
+{
+	curlhandle_list_mutex->Lock();
+	g_cURLThread_List.remove(thread);
+	curlhandle_list_mutex->Unlock();
+}
+
 void cURLManager::RemovecURLHandle(cURLHandle *handle)
 {
 	if(!handle)
@@ -73,6 +111,7 @@ bool cURLManager::AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *
 		case CURLOPT_PROXYUSERPWD:
 		case CURLOPT_RANGE:
 		case CURLOPT_USERPWD:
+		case CURLOPT_KEYPASSWD:
 		case CURLOPT_POSTFIELDS:
 		case CURLOPT_REFERER:
 		case CURLOPT_FTPPORT:
@@ -110,7 +149,9 @@ bool cURLManager::AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *
 		case CURLOPT_COOKIEJAR:
 		case CURLOPT_RANDOM_FILE:
 		case CURLOPT_EGDSOCKET:
+		case CURLOPT_SSLCERT:
 		case CURLOPT_SSLKEY:
+		case CURLOPT_CAINFO:
 		case CURLOPT_CAPATH:
 		case CURLOPT_NETRC_FILE:
 		case CURLOPT_SSH_PUBLIC_KEYFILE:
@@ -125,7 +166,6 @@ bool cURLManager::AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *
 			supported = true;
 			break;
 		}
-
 	}
 
 	assert((supported != false));
@@ -356,6 +396,8 @@ void cURLManager::LoadcURLOption(cURLHandle *handle)
 	curl_easy_setopt(handle->curl, CURLOPT_ERRORBUFFER, handle->errorBuffer);
 	curl_easy_setopt(handle->curl, CURLOPT_WRITEFUNCTION, curl_write_function);
 
+	//curl_easy_setopt(handle->curl, CURLOPT_READFUNCTION, curl_read_function);
+
 	//curl_easy_setopt(handle->curl, CURLOPT_WRITEDATA, handle);
 
 	SourceHook::List<cURLOpt_string *>::iterator iter;
@@ -510,5 +552,3 @@ CURLFORMcode cURLManager::cURLFormAdd(IPluginContext *pContext, const cell_t *pa
 		);
 	return ret;
 }
-
-

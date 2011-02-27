@@ -47,6 +47,97 @@ HandleType_t g_cURLSlist = 0;
 
 IdentityToken_t *myself_Identity = NULL;
 
+static int wait_on_socket(curl_socket_t sockfd, int for_recv, long timeout_ms)
+{
+  struct timeval tv;
+  fd_set infd, outfd, errfd;
+  int res;
+ 
+  tv.tv_sec = timeout_ms / 1000;
+  tv.tv_usec= (timeout_ms % 1000) * 1000;
+ 
+  FD_ZERO(&infd);
+  FD_ZERO(&outfd);
+  FD_ZERO(&errfd);
+ 
+  FD_SET(sockfd, &errfd); /* always check for error */ 
+ 
+  if(for_recv)
+  {
+    FD_SET(sockfd, &infd);
+  }
+  else
+  {
+    FD_SET(sockfd, &outfd);
+  }
+ 
+  /* select() returns the number of signalled sockets or -1 */ 
+  res = select(sockfd + 1, &infd, &outfd, &errfd, &tv);
+  return res;
+}
+
+
+void Testt()
+{
+	CURL *curl;
+	CURLcode res;
+	/* Minimalistic http request */ 
+	const char *request = "GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n";
+	curl_socket_t sockfd; /* socket */ 
+	long sockextr;
+	size_t iolen;
+
+	curl = curl_easy_init();
+
+	char errorBuffer[256];
+	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
+	curl_easy_setopt(curl, CURLOPT_URL, "http://www.google.com");
+    /* Do not do the transfer - only connect to host */ 
+    curl_easy_setopt(curl, CURLOPT_CONNECT_ONLY, 1L);
+	 curl_easy_setopt(curl,CURLOPT_VERBOSE,1);
+    res = curl_easy_perform(curl);
+
+	res = curl_easy_getinfo(curl, CURLINFO_LASTSOCKET, &sockextr);
+
+	sockfd = sockextr;
+
+	if(!wait_on_socket(sockfd, 0, 60000L))
+    {
+      printf("Error: timeout.\n");
+      return;
+    }
+
+	puts("Sending request.");
+    /* Send the request. Real applications should check the iolen
+     * to see if all the request has been sent */ 
+    res = curl_easy_send(curl, request, strlen(request), &iolen);
+
+	if(CURLE_OK != res)
+    {
+      printf("Error: %s\n", curl_easy_strerror(res));
+      return;
+    }
+    puts("Reading response.");
+ 
+    /* read the response */ 
+    for(;;)
+    {
+      char buf[128];
+ 
+      wait_on_socket(sockfd, 1, 60000L);
+      res = curl_easy_recv(curl, buf, 128, &iolen);
+	//	res = curl_easy_recv(curl, buf, 1024, &iolen);
+ 
+      if(CURLE_OK != res)
+        break;
+ 
+      printf("Received %u bytes.\n", iolen);
+    }
+ 
+    /* always cleanup */ 
+    curl_easy_cleanup(curl);
+}
+
 bool cURL_SM::SDK_OnLoad(char *error, size_t maxlength, bool late)
 {
 	CURLcode code;
@@ -100,11 +191,12 @@ bool cURL_SM::SDK_OnLoad(char *error, size_t maxlength, bool late)
 		valid = false;
 	}
 
-
 	if(!valid)
 		return false;
 
 	sharesys->AddNatives(myself, g_cURLNatives);
+
+	g_cURLManager.SDK_OnLoad();
 
 	curl_version_info_data *vinfo = curl_version_info(CURLVERSION_NOW);
 	
@@ -112,11 +204,52 @@ bool cURL_SM::SDK_OnLoad(char *error, size_t maxlength, bool late)
 	if(ff & CURL_VERSION_TLSAUTH_SRP)
 		int ggg = 1;
 
+	const char * const *proto;
+
+	for(proto=vinfo->protocols; *proto; ++proto) {
+          printf("%s ", *proto);
+        }
+	printf("\n");
+
+	struct feat {
+          const char *name;
+          int bitmask;
+        };
+
+	static const struct feat feats[] = {
+          {"AsynchDNS", CURL_VERSION_ASYNCHDNS},
+          {"Debug", CURL_VERSION_DEBUG},
+          {"TrackMemory", CURL_VERSION_CURLDEBUG},
+          {"GSS-Negotiate", CURL_VERSION_GSSNEGOTIATE},
+          {"IDN", CURL_VERSION_IDN},
+          {"IPv6", CURL_VERSION_IPV6},
+          {"Largefile", CURL_VERSION_LARGEFILE},
+          {"NTLM", CURL_VERSION_NTLM},
+          {"SPNEGO", CURL_VERSION_SPNEGO},
+          {"SSL",  CURL_VERSION_SSL},
+          {"SSPI",  CURL_VERSION_SSPI},
+          {"krb4", CURL_VERSION_KERBEROS4},
+          {"libz", CURL_VERSION_LIBZ},
+          {"CharConv", CURL_VERSION_CONV},
+          {"TLS-SRP", CURL_VERSION_TLSAUTH_SRP}
+        };
+        printf("Features: ");
+        for(int i=0; i<sizeof(feats)/sizeof(feats[0]); i++) {
+          if(vinfo->features & feats[i].bitmask)
+            printf("%s ", feats[i].name);
+        }
+	printf("\n");
+
+
+	//Testt();
+
 	return true;
 }
 
 void cURL_SM::SDK_OnUnload()
 {
+	g_cURLManager.SDK_OnUnload();
+
 	curl_global_cleanup();
 }
 

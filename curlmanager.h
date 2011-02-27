@@ -6,6 +6,25 @@
 #include <sh_list.h>
 #include <curl/curl.h>
 
+class cURLThread;
+
+enum cURLThread_Type {
+	cURLThread_Type_Perform = 0,
+	cURLThread_Type_Send_Recv,
+
+	cURLThread_Type_Last,
+};
+
+enum cURLThread_Func {
+	cURLThread_Func_Complete = 0,
+	cURLThread_Func_Send,
+	cURLThread_Func_Recv,
+	cURLThread_Func_Send_Recv_Complete,
+
+	cURLThread_Func_Last,
+};
+
+
 struct cURL_slist_pack {
 	cURL_slist_pack():chunk(NULL)
 	{
@@ -35,9 +54,11 @@ struct cURLOpt_pointer {
 
 struct cURLHandle {
 	cURLHandle():curl(NULL),running(false),lasterror(CURLE_OK),opt_loaded(false),
-		callback_Function(NULL)
+		sockextr(INVALID_SOCKET),timeout(60000),send_buffer(NULL)
 	{
 		memset(errorBuffer,0,sizeof(errorBuffer));
+		memset(callback_Function, 0, sizeof(callback_Function));
+		memset(UserData,0,sizeof(UserData));
 	}
 	CURL *curl;
 	char errorBuffer[CURL_ERROR_SIZE];
@@ -48,8 +69,14 @@ struct cURLHandle {
 	bool running;
 	CURLcode lasterror;
 	bool opt_loaded;
-	IPluginFunction *callback_Function;
+	IPluginFunction *callback_Function[cURLThread_Func_Last];
 	Handle_t hndl;
+	int UserData[2];
+
+	/* use for send & recv */
+	long sockextr;
+	long timeout;
+	char *send_buffer;
 };
 
 struct WebForm {
@@ -64,6 +91,14 @@ struct WebForm {
 class cURLManager
 {
 public:
+	void SDK_OnLoad();
+	void SDK_OnUnload();
+
+public:
+	void MakecURLThread(cURLThread *thread);
+	void RemovecURLThread(cURLThread *thread);
+
+public:
 	void RemovecURLHandle(cURLHandle *handle);
 	bool AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *value);
 	bool AddcURLOptionInt(cURLHandle *handle, CURLoption opt, int value);
@@ -73,8 +108,14 @@ public:
 
 public:
 	CURLFORMcode cURLFormAdd(IPluginContext *pContext, const cell_t *params, WebForm *handle);
+
+private:
+	bool shutdown;
+	IMutex *curlhandle_list_mutex;
+	SourceHook::List<cURLThread *> g_cURLThread_List;
 };
 
 extern cURLManager g_cURLManager;
+
 
 #endif
