@@ -93,6 +93,8 @@ class cURLManager
 public:
 	void SDK_OnLoad();
 	void SDK_OnUnload();
+public:
+	bool IsShutdown();
 
 public:
 	void MakecURLThread(cURLThread *thread);
@@ -111,7 +113,9 @@ public:
 
 private:
 	bool shutdown;
+	bool waiting;
 	IMutex *curlhandle_list_mutex;
+	IEventSignal *shutdown_event;
 	SourceHook::List<cURLThread *> g_cURLThread_List;
 };
 

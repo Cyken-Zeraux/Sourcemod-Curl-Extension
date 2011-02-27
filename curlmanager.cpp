@@ -16,18 +16,53 @@ static size_t curl_write_function(void *ptr, size_t bytes, size_t nmemb, void *s
 void cURLManager::SDK_OnLoad()
 {
 	curlhandle_list_mutex = threader->MakeMutex();
+	shutdown_event = threader->MakeEventSignal();
+
+	waiting = false;
 	shutdown = false;
 }
 
 void cURLManager::SDK_OnUnload()
 {
+	shutdown = true;
+
+	curlhandle_list_mutex->Lock();
 	if(g_cURLThread_List.size() > 0)
 	{
-		int gggg = 0;
+		printf("[CURL] Waiting %d CURL Threads Terminate...\n",g_cURLThread_List.size());		
+
+		SourceHook::List<cURLThread *>::iterator iter = g_cURLThread_List.begin();
+		cURLThread *pInfo;
+		while (iter != g_cURLThread_List.end())
+		{
+			pInfo = (*iter);
+			if(pInfo->added_frame_finish) // add finish frame hook, but server is closing
+			{
+				iter = g_cURLThread_List.erase(iter);
+				delete pInfo;
+				continue;
+			} else if(pInfo->waiting) {
+				pInfo->event->Signal();
+			}
+			iter++;
+		}
+
+		curlhandle_list_mutex->Unlock();
+
+		waiting = true;
+		shutdown_event->Wait();
+
+		printf("[CURL] All CURL Thread Terminated !!!\n");
+	} else {
+		curlhandle_list_mutex->Unlock();
 	}
 
+	shutdown_event->DestroyThis();
+	curlhandle_list_mutex->DestroyThis();
 
-
+	shutdown_event = NULL;
+	curlhandle_list_mutex = NULL;
+	g_cURLThread_List.clear();
 }
 
 void cURLManager::MakecURLThread(cURLThread *thread)
@@ -41,7 +76,9 @@ void cURLManager::MakecURLThread(cURLThread *thread)
 	g_cURLThread_List.push_back(thread);
 	curlhandle_list_mutex->Unlock();
 
-	threader->MakeThread(thread);
+	ThreadParams params;
+	params.prio = ThreadPrio_Minimum;
+	threader->MakeThread(thread, &params);
 }
 
 void cURLManager::RemovecURLThread(cURLThread *thread)
@@ -49,14 +86,28 @@ void cURLManager::RemovecURLThread(cURLThread *thread)
 	curlhandle_list_mutex->Lock();
 	g_cURLThread_List.remove(thread);
 	curlhandle_list_mutex->Unlock();
+
+	if(waiting)
+	{
+		if(g_cURLThread_List.size() == 0)
+		{
+			shutdown_event->Signal();
+		}
+	}
+}
+
+bool cURLManager::IsShutdown()
+{
+	return shutdown;
 }
 
 void cURLManager::RemovecURLHandle(cURLHandle *handle)
 {
-	if(!handle)
+	if(!handle || handle->running)
 		return;
 	
 	curl_easy_cleanup(handle->curl);
+	handle->curl = NULL;
 
 	SourceHook::List<cURLOpt_string *>::iterator iter;
 	cURLOpt_string *pInfo;

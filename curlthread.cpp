@@ -28,7 +28,8 @@ static int wait_on_socket(curl_socket_t sockfd, int for_recv, long timeout_ms)
 
 
 cURLThread::cURLThread(cURLHandle *_handle, cURLThread_Type _type):
-handle(_handle),type(_type),event(NULL),last_iolen(0),recv_buffer_size(0),recv_buffer(NULL)
+handle(_handle),type(_type),event(NULL),last_iolen(0),recv_buffer_size(0),recv_buffer(NULL),
+waiting(false),added_frame_finish(false)
 {
 	switch(type)
 	{
@@ -41,6 +42,9 @@ handle(_handle),type(_type),event(NULL),last_iolen(0),recv_buffer_size(0),recv_b
 
 cURLThread::~cURLThread()
 {
+	waiting = false;
+	added_frame_finish = false;
+
 	if(event != NULL)
 	{
 		event->DestroyThis();
@@ -135,6 +139,7 @@ static void curl_recv_FramAction(void *data)
 	assert((event != NULL));
 	
 	IPluginFunction *pFunc = handle->callback_Function[cURLThread_Func_Recv];
+	assert((pFunc != NULL));
 	if(pFunc != NULL)
 	{
 		pFunc->PushCell(handle->hndl);
@@ -158,9 +163,13 @@ CURLcode cURLThread::RunThread_Send_Recv()
 	if(!wait_on_socket(handle->sockextr, 0, handle->timeout))
 		return CURLE_OPERATION_TIMEDOUT;
  
-	smutils->AddFrameAction(curl_send_FramAction, this);
-
-	event->Wait();
+	if(!g_cURLManager.IsShutdown())
+	{
+		smutils->AddFrameAction(curl_send_FramAction, this);
+		waiting = true;
+		event->Wait();
+		waiting = false;
+	}
 
 	size_t iolen;
 	if(handle->send_buffer == NULL)	
@@ -188,8 +197,13 @@ CURLcode cURLThread::RunThread_Send_Recv()
 		 
 		new_size += last_iolen;
 
-		smutils->AddFrameAction(curl_recv_FramAction, this);
-		event->Wait();
+		if(!g_cURLManager.IsShutdown())
+		{
+			smutils->AddFrameAction(curl_recv_FramAction, this);
+			waiting = true;
+			event->Wait();
+			waiting = false;
+		}
 	}	
 	return CURLE_OK;
 }
@@ -209,6 +223,7 @@ static void cUrl_Send_Recv_Finish(void *data)
 		assert((event != NULL));
 
 		IPluginFunction *pFunc = handle->callback_Function[cURLThread_Func_Send_Recv_Complete];
+		assert((pFunc != NULL));
 		if(pFunc != NULL)
 		{
 			pFunc->PushCell(handle->hndl);
@@ -235,8 +250,13 @@ void cURLThread::RunThread(IThreadHandle *pHandle)
 		{
 			handle->lasterror = RunThread_Send_Recv();
 
-			smutils->AddFrameAction(cUrl_Send_Recv_Finish, this);
-			event->Wait();
+			if(!g_cURLManager.IsShutdown())
+			{
+				smutils->AddFrameAction(cUrl_Send_Recv_Finish, this);
+				waiting = true;
+				event->Wait();
+				waiting = false;
+			}
 		}
 	}
 }
@@ -249,8 +269,9 @@ static void cUrl_Thread_Finish(void *data)
 
 	cURLThread *thread = (cURLThread*)data;
 	cURLHandle *handle = thread->GetHandle();
-	
+		
 	IPluginFunction *pFunc = handle->callback_Function[cURLThread_Func_Complete];
+	assert((pFunc != NULL));
 	if(pFunc != NULL)
 	{
 		pFunc->PushCell(handle->hndl);
@@ -258,13 +279,20 @@ static void cUrl_Thread_Finish(void *data)
 		pFunc->PushCell(handle->UserData[0]);
 		pFunc->Execute(NULL);
 	}
-
+	
 	delete thread;
 }
 
 void cURLThread::OnTerminate(IThreadHandle *pHandle, bool cancel)
 {
 	handle->running = false;
-	smutils->AddFrameAction(cUrl_Thread_Finish, this);
+	if(g_cURLManager.IsShutdown())
+	{
+		g_cURLManager.RemovecURLHandle(handle);
+		delete this;
+	} else {
+		added_frame_finish = true;
+		smutils->AddFrameAction(cUrl_Thread_Finish, this);
+	}
 }
 

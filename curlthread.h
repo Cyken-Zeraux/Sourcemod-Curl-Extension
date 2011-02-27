@@ -13,6 +13,8 @@ enum cURLThread_Type;
 class cURLThread :
 	public IThread
 {
+	friend class cURLManager;
+
 public:
 	cURLThread(cURLHandle *_handle, cURLThread_Type _type);
 	~cURLThread();
@@ -31,6 +33,8 @@ public:
 	CURLcode RunThread_Send_Recv();
 
 private:
+	bool waiting;
+	bool added_frame_finish;
 	cURLHandle *handle;
 	cURLThread_Type type;
 	IEventSignal *event;
