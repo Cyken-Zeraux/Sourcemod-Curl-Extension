@@ -8,20 +8,34 @@
 
 class cURLThread;
 
-enum cURLThread_Type {
-	cURLThread_Type_Perform = 0,
-	cURLThread_Type_Send_Recv,
+enum SendRecv_Act {
+	SendRecv_Act_NOTHING = 0,
 
-	cURLThread_Type_Last,
+	SendRecv_Act_GOTO_SEND,
+	SendRecv_Act_GOTO_RECV,
+	SendRecv_Act_GOTO_WAIT,
+	SendRecv_Act_GOTO_END,
+
+	SendRecv_Act_LAST,
+};
+
+enum cURLThread_Type {
+	cURLThread_Type_NOTHING = 0,
+
+	cURLThread_Type_PERFORM,
+	cURLThread_Type_SEND_RECV,
+
+	cURLThread_Type_LAST,
 };
 
 enum cURLThread_Func {
-	cURLThread_Func_Complete = 0,
-	cURLThread_Func_Send,
-	cURLThread_Func_Recv,
-	cURLThread_Func_Send_Recv_Complete,
+	cURLThread_Func_NOTHING = 0,
 
-	cURLThread_Func_Last,
+	cURLThread_Func_COMPLETE,
+	cURLThread_Func_SEND,
+	cURLThread_Func_RECV,
+
+	cURLThread_Func_LAST,
 };
 
 
@@ -54,7 +68,7 @@ struct cURLOpt_pointer {
 
 struct cURLHandle {
 	cURLHandle():curl(NULL),running(false),lasterror(CURLE_OK),opt_loaded(false),
-		sockextr(INVALID_SOCKET),timeout(60000),send_buffer(NULL)
+		sockextr(INVALID_SOCKET),timeout(60000),send_buffer(NULL),thread(NULL)
 	{
 		memset(errorBuffer,0,sizeof(errorBuffer));
 		memset(callback_Function, 0, sizeof(callback_Function));
@@ -69,9 +83,10 @@ struct cURLHandle {
 	bool running;
 	CURLcode lasterror;
 	bool opt_loaded;
-	IPluginFunction *callback_Function[cURLThread_Func_Last];
+	IPluginFunction *callback_Function[cURLThread_Func_LAST];
 	Handle_t hndl;
 	int UserData[2];
+	cURLThread *thread;
 
 	/* use for send & recv */
 	long sockextr;
@@ -95,6 +110,8 @@ public:
 	void SDK_OnUnload();
 public:
 	bool IsShutdown();
+
+	void test();
 
 public:
 	void MakecURLThread(cURLThread *thread);

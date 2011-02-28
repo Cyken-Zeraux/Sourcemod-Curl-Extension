@@ -75,23 +75,29 @@ funcenum CURL_OnComplete
 	public(Handle:hndl, CURLcode: code , any:data),
 };
 
+enum SendRecv_Act {
+	SendRecv_Act_NOTHING = 0,
+
+	SendRecv_Act_GOTO_SEND,
+	SendRecv_Act_GOTO_RECV,
+	SendRecv_Act_GOTO_WAIT,
+	SendRecv_Act_GOTO_END,
+
+	SendRecv_Act_LAST,
+};
+
 funcenum CURL_OnSend
 {
-	public(Handle:hndl),
-	public(Handle:hndl, any:data),
+	SendRecv_Act:public(Handle:hndl, const last_sent_dataSize),
+	SendRecv_Act:public(Handle:hndl, const last_sent_dataSize, any:data),
 }
 
 funcenum CURL_OnReceive
 {
-	public(Handle:hndl, const String:receiveData[], const dataSize),
-	public(Handle:hndl, const String:receiveData[], const dataSize, any:data),
+	SendRecv_Act:public(Handle:hndl, const String:receiveData[], const dataSize),
+	SendRecv_Act:public(Handle:hndl, const String:receiveData[], const dataSize, any:data),
 }
 
-funcenum CURL_OnSendReceiveComplete
-{
-	Action:public(Handle:hndl, CURLcode: code),
-	Action:public(Handle:hndl, CURLcode: code , any:data),
-}
 
 native Handle:curl_easy_init();
 
@@ -109,7 +115,8 @@ native CURLcode:curl_load_opt(Handle:hndl);
 native CURLcode:curl_easy_perform(Handle:hndl);
 native curl_easy_perform_thread(Handle:hndl, CURL_OnComplete:perform_callback=CURL_Default_Perform_CallBack, any:data=0);
 
-native curl_easy_send_recv(Handle:hndl, CURL_OnSend:send_callback, CURL_OnReceive:receive_callback, CURL_OnSendReceiveComplete:send_recv_complete_callback, CURL_OnComplete:complete_callback, timeout, recv_buffer_Size = 1024, any:data=0);
+native curl_easy_send_recv(Handle:hndl, CURL_OnSend:send_callback, CURL_OnReceive:receive_callback, CURL_OnComplete:complete_callback, SendRecv_Act:act, timeout, recv_buffer_Size = 1024, any:data=0);
+native bool:curl_send_recv_Signal(Handle:hndl, SendRecv_Act:act);
 native curl_set_send_buffer(Handle:hndl, const String:buffer[]);
 
 

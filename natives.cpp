@@ -125,10 +125,10 @@ static cell_t sm_curl_easy_perform_thread(IPluginContext *pContext, const cell_t
 	}
 
 	handle->UserData[0] = params[3];	
-	handle->callback_Function[cURLThread_Func_Complete] = pFunction;
-	cURLThread *thread = new cURLThread(handle, cURLThread_Type_Perform);
+	handle->callback_Function[cURLThread_Func_COMPLETE] = pFunction;
+	cURLThread *thread = new cURLThread(handle, cURLThread_Type_PERFORM);
 	g_cURLManager.MakecURLThread(thread);
-	//threader->MakeThread(thread);
+
 	return 1;
 }
 
@@ -252,9 +252,65 @@ static cell_t sm_curl_easy_strerror(IPluginContext *pContext, const cell_t *para
 }
 
 /* send & recv */
-static cell_t sm_curl_easy_send_recv(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_easy_send_recv2(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
+
+	IPluginFunction *pFunction_send = pContext->GetFunctionById(params[2]);
+	if(!pFunction_send)
+	{
+		return pContext->ThrowNativeError("Invalid function %x", params[2]);
+	}
+	
+	IPluginFunction *pFunction_recv = pContext->GetFunctionById(params[3]);
+	if(!pFunction_recv)
+	{
+		return pContext->ThrowNativeError("Invalid function %x", params[3]);
+	}
+
+	IPluginFunction *pFunction_complete = pContext->GetFunctionById(params[4]);
+	if(!pFunction_complete)
+	{
+		return pContext->ThrowNativeError("Invalid function %x", params[4]);
+	}
+
+	handle->timeout = params[6];
+	handle->UserData[1] = params[8];
+	handle->callback_Function[cURLThread_Func_SEND] = pFunction_send;
+	handle->callback_Function[cURLThread_Func_RECV] = pFunction_recv;
+	handle->callback_Function[cURLThread_Func_COMPLETE] = pFunction_complete;
+	cURLThread *thread = new cURLThread(handle, cURLThread_Type_SEND_RECV);
+	thread->SetRecvBufferSize(params[7]);
+	thread->SetSenRecvAction((SendRecv_Act)params[5]);
+	g_cURLManager.MakecURLThread(thread);
+
+	return 1;
+}
+
+static cell_t sm_curl_send_recv_Signal(IPluginContext *pContext, const cell_t *params)
+{
+	SETUP_CURL_HANDLE();
+
+	if(handle->thread == NULL)
+		return 0;
+
+	cURLThread *thread = handle->thread;
+	if(thread->GetRunType() != cURLThread_Type_SEND_RECV ||
+		!handle->running || !thread->IsWaiting())
+	{
+		return 0;
+	}
+
+	thread->SetSenRecvAction((SendRecv_Act)params[2]);
+	thread->EventSignal();
+
+	return 1;
+}
+
+
+static cell_t sm_curl_easy_send_recv(IPluginContext *pContext, const cell_t *params)
+{
+	/*SETUP_CURL_HANDLE();
 
 	IPluginFunction *pFunction_send = pContext->GetFunctionById(params[2]);
 	if(!pFunction_send)
@@ -282,16 +338,16 @@ static cell_t sm_curl_easy_send_recv(IPluginContext *pContext, const cell_t *par
 
 	handle->timeout = (long)params[6];
 	handle->UserData[1] = params[8];	
-	handle->callback_Function[cURLThread_Func_Send] = pFunction_send;
-	handle->callback_Function[cURLThread_Func_Recv] = pFunction_recv;
-	handle->callback_Function[cURLThread_Func_Send_Recv_Complete] = pFunction_senc_recv_complete;
-	handle->callback_Function[cURLThread_Func_Complete] = pFunction_complete;	
-	cURLThread *thread = new cURLThread(handle, cURLThread_Type_Send_Recv);
+	handle->callback_Function[cURLThread_Func_SEND] = pFunction_send;
+	handle->callback_Function[cURLThread_Func_RECV] = pFunction_recv;
+	handle->callback_Function[cURLThread_Func_SEND_Recv_Complete] = pFunction_senc_recv_complete;
+	handle->callback_Function[cURLThread_Func_COMPLETE] = pFunction_complete;	
+	cURLThread *thread = new cURLThread(handle, cURLThread_Type_SEND_RECV);
 	thread->SetRecvBufferSize((unsigned int)params[7]);
 
 	g_cURLManager.MakecURLThread(thread);
 
-	//threader->MakeThread(thread);
+	//threader->MakeThread(thread);*/
 	return 1;
 }
 
@@ -424,8 +480,10 @@ sp_nativeinfo_t g_cURLNatives[] =
 	{"curl_easy_strerror",			sm_curl_easy_strerror},
 	{"curl_get_error_buffer",		sm_curl_get_error_buffer},
 
+	{"curl_easy_send_recv2",		sm_curl_easy_send_recv2},
 	{"curl_easy_send_recv",			sm_curl_easy_send_recv},
 	{"curl_set_send_buffer",		sm_curl_set_send_buffer},
+	{"curl_send_recv_Signal",		sm_curl_send_recv_Signal},
 
 	{"curl_version",				sm_curl_version},
 	{"curl_features",				sm_curl_features},

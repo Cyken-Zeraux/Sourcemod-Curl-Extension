@@ -8,7 +8,7 @@
 struct cURLHandle;
 enum cURLThread_Func;
 enum cURLThread_Type;
-
+enum SendRecv_Act;
 
 class cURLThread :
 	public IThread
@@ -20,9 +20,11 @@ public:
 	~cURLThread();
 	cURLHandle *GetHandle();
 	cURLThread_Type GetRunType();
-	IEventSignal *GetEventSignal();
+	void EventSignal();
+	bool IsWaiting();
 	char *GetBuffer();
 	void SetRecvBufferSize(unsigned int size);
+	void SetSenRecvAction(SendRecv_Act act);
 
 public:
 	void RunThread(IThreadHandle *pHandle);
@@ -34,12 +36,12 @@ public:
 
 private:
 	bool waiting;
-	bool added_frame_finish;
 	cURLHandle *handle;
 	cURLThread_Type type;
 	IEventSignal *event;
 	char *recv_buffer;
 	unsigned int recv_buffer_size;
+	SendRecv_Act send_recv_act;
 
 public:
 	size_t last_iolen;
