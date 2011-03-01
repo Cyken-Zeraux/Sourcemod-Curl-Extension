@@ -126,8 +126,9 @@ static cell_t sm_curl_easy_perform_thread(IPluginContext *pContext, const cell_t
 
 	handle->UserData[0] = params[3];	
 	handle->callback_Function[cURLThread_Func_COMPLETE] = pFunction;
+	handle->running = true;
 	cURLThread *thread = new cURLThread(handle, cURLThread_Type_PERFORM);
-	g_cURLManager.MakecURLThread(thread);
+	g_cURLManager.CreatecURLThread(thread);
 
 	return 1;
 }
@@ -252,7 +253,7 @@ static cell_t sm_curl_easy_strerror(IPluginContext *pContext, const cell_t *para
 }
 
 /* send & recv */
-static cell_t sm_curl_easy_send_recv2(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_easy_send_recv(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
 
@@ -279,10 +280,11 @@ static cell_t sm_curl_easy_send_recv2(IPluginContext *pContext, const cell_t *pa
 	handle->callback_Function[cURLThread_Func_SEND] = pFunction_send;
 	handle->callback_Function[cURLThread_Func_RECV] = pFunction_recv;
 	handle->callback_Function[cURLThread_Func_COMPLETE] = pFunction_complete;
+	handle->running = true;
 	cURLThread *thread = new cURLThread(handle, cURLThread_Type_SEND_RECV);
 	thread->SetRecvBufferSize(params[7]);
 	thread->SetSenRecvAction((SendRecv_Act)params[5]);
-	g_cURLManager.MakecURLThread(thread);
+	g_cURLManager.CreatecURLThread(thread);
 
 	return 1;
 }
@@ -296,7 +298,7 @@ static cell_t sm_curl_send_recv_Signal(IPluginContext *pContext, const cell_t *p
 
 	cURLThread *thread = handle->thread;
 	if(thread->GetRunType() != cURLThread_Type_SEND_RECV ||
-		!handle->running || !thread->IsWaiting())
+		!handle->running || !thread->IsWaiting()) // is send & recv thread, running, is waiting 
 	{
 		return 0;
 	}
@@ -308,54 +310,54 @@ static cell_t sm_curl_send_recv_Signal(IPluginContext *pContext, const cell_t *p
 }
 
 
-static cell_t sm_curl_easy_send_recv(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_send_recv_IsWaiting(IPluginContext *pContext, const cell_t *params)
 {
-	/*SETUP_CURL_HANDLE();
+	SETUP_CURL_HANDLE();
 
-	IPluginFunction *pFunction_send = pContext->GetFunctionById(params[2]);
-	if(!pFunction_send)
-	{
-		return pContext->ThrowNativeError("Invalid function %x", params[2]);
-	}
-	
-	IPluginFunction *pFunction_recv = pContext->GetFunctionById(params[3]);
-	if(!pFunction_recv)
-	{
-		return pContext->ThrowNativeError("Invalid function %x", params[3]);
-	}
-	
-	IPluginFunction *pFunction_senc_recv_complete = pContext->GetFunctionById(params[4]);
-	if(!pFunction_senc_recv_complete)
-	{
-		return pContext->ThrowNativeError("Invalid function %x", params[4]);
-	}
-	
-	IPluginFunction *pFunction_complete = pContext->GetFunctionById(params[5]);
-	if(!pFunction_complete)
-	{
-		return pContext->ThrowNativeError("Invalid function %x", params[5]);
-	}
+	if(handle->thread == NULL)
+		return 0;
 
-	handle->timeout = (long)params[6];
-	handle->UserData[1] = params[8];	
-	handle->callback_Function[cURLThread_Func_SEND] = pFunction_send;
-	handle->callback_Function[cURLThread_Func_RECV] = pFunction_recv;
-	handle->callback_Function[cURLThread_Func_SEND_Recv_Complete] = pFunction_senc_recv_complete;
-	handle->callback_Function[cURLThread_Func_COMPLETE] = pFunction_complete;	
-	cURLThread *thread = new cURLThread(handle, cURLThread_Type_SEND_RECV);
-	thread->SetRecvBufferSize((unsigned int)params[7]);
+	cURLThread *thread = handle->thread;
+	if(thread->GetRunType() != cURLThread_Type_SEND_RECV || !handle->running) // is send & recv thread, running
+		return 0;
 
-	g_cURLManager.MakecURLThread(thread);
-
-	//threader->MakeThread(thread);*/
-	return 1;
+	return (thread->IsWaiting()) ? 1 : 0;
 }
+
 
 static cell_t sm_curl_set_send_buffer(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
 
-	pContext->LocalToString(params[2], &handle->send_buffer);
+	char *buffer;
+	unsigned int data_size = (unsigned int)params[3];
+	if(data_size > 0)
+	{
+		cell_t *addr;
+		pContext->LocalToPhysAddr(params[2], &addr);
+		buffer = (char *)addr;
+		handle->send_buffer_length = params[3];		
+	} else {		
+		pContext->LocalToString(params[2], &buffer);
+		handle->send_buffer_length = strlen(buffer);
+	}
+
+	if(handle->send_buffer != NULL)
+	{
+		delete handle->send_buffer;
+		handle->send_buffer = NULL;
+	}
+
+	if(handle->send_buffer_length == 0)
+		return 0;
+
+	handle->send_buffer = new unsigned char[handle->send_buffer_length];
+	memcpy(handle->send_buffer, buffer, handle->send_buffer_length);
+
+	/*unsigned char sss[256];
+	memset(sss, 0 ,sizeof(sss));
+	memcpy(sss, buffer, handle->send_buffer_length);*/
+
 	return 1;
 }
 
@@ -414,19 +416,19 @@ static cell_t sm_curl_OpenFile(IPluginContext *pContext, const cell_t *params)
 
 	FILE *pFile = fopen(realpath, mode);
 	if(!pFile)
-		return 0;
-	
+		return 0;	
 
 	return handlesys->CreateHandle(g_cURLFile, pFile, pContext->GetIdentity(), myself_Identity, NULL);
 }
 
 static cell_t sm_curl_httppost(IPluginContext *pContext, const cell_t *params)
 {
-	WebForm *handle = new WebForm();
-	Handle_t hndl = handlesys->CreateHandle(g_WebForm, handle, pContext->GetIdentity(), myself_Identity, NULL);
+	WebForm *webform = new WebForm();
+
+	Handle_t hndl = handlesys->CreateHandle(g_WebForm, webform, pContext->GetIdentity(), myself_Identity, NULL);
 	if(!hndl)
 	{
-		delete handle;
+		delete webform;
 		return BAD_HANDLE;
 	}
 	return hndl;
@@ -452,11 +454,12 @@ static cell_t sm_curl_slist_append(IPluginContext *pContext, const cell_t *param
 
 static cell_t sm_curl_slist(IPluginContext *pContext, const cell_t *params)
 {
-	cURL_slist_pack *handle = new cURL_slist_pack();
-	Handle_t hndl = handlesys->CreateHandle(g_cURLSlist, handle, pContext->GetIdentity(), myself_Identity, NULL);
+	cURL_slist_pack *slist_pack = new cURL_slist_pack();
+
+	Handle_t hndl = handlesys->CreateHandle(g_cURLSlist, slist_pack, pContext->GetIdentity(), myself_Identity, NULL);
 	if(!hndl)
 	{
-		delete handle;
+		delete slist_pack;
 		return BAD_HANDLE;
 	}
 	return hndl;
@@ -480,10 +483,10 @@ sp_nativeinfo_t g_cURLNatives[] =
 	{"curl_easy_strerror",			sm_curl_easy_strerror},
 	{"curl_get_error_buffer",		sm_curl_get_error_buffer},
 
-	{"curl_easy_send_recv2",		sm_curl_easy_send_recv2},
 	{"curl_easy_send_recv",			sm_curl_easy_send_recv},
 	{"curl_set_send_buffer",		sm_curl_set_send_buffer},
 	{"curl_send_recv_Signal",		sm_curl_send_recv_Signal},
+	{"curl_send_recv_IsWaiting",	sm_curl_send_recv_IsWaiting},
 
 	{"curl_version",				sm_curl_version},
 	{"curl_features",				sm_curl_features},

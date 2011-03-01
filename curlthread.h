@@ -32,7 +32,7 @@ public:
 
 public:
 	void RunThread_Perform();
-	CURLcode RunThread_Send_Recv();
+	void RunThread_Send_Recv();
 
 private:
 	bool waiting;
@@ -45,7 +45,6 @@ private:
 
 public:
 	size_t last_iolen;
-	cell_t result;
 };
 
 

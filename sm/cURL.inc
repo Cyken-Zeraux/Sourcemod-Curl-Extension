@@ -88,14 +88,14 @@ enum SendRecv_Act {
 
 funcenum CURL_OnSend
 {
-	SendRecv_Act:public(Handle:hndl, const last_sent_dataSize),
-	SendRecv_Act:public(Handle:hndl, const last_sent_dataSize, any:data),
+	SendRecv_Act:public(Handle:hndl, CURLcode: code, const last_sent_dataSize),
+	SendRecv_Act:public(Handle:hndl, CURLcode: code, const last_sent_dataSize, any:data),
 }
 
 funcenum CURL_OnReceive
 {
-	SendRecv_Act:public(Handle:hndl, const String:receiveData[], const dataSize),
-	SendRecv_Act:public(Handle:hndl, const String:receiveData[], const dataSize, any:data),
+	SendRecv_Act:public(Handle:hndl, CURLcode: code, const String:receiveData[], const dataSize),
+	SendRecv_Act:public(Handle:hndl, CURLcode: code, const String:receiveData[], const dataSize, any:data),
 }
 
 
@@ -115,9 +115,10 @@ native CURLcode:curl_load_opt(Handle:hndl);
 native CURLcode:curl_easy_perform(Handle:hndl);
 native curl_easy_perform_thread(Handle:hndl, CURL_OnComplete:perform_callback=CURL_Default_Perform_CallBack, any:data=0);
 
-native curl_easy_send_recv(Handle:hndl, CURL_OnSend:send_callback, CURL_OnReceive:receive_callback, CURL_OnComplete:complete_callback, SendRecv_Act:act, timeout, recv_buffer_Size = 1024, any:data=0);
+native curl_easy_send_recv(Handle:hndl, CURL_OnSend:send_callback, CURL_OnReceive:receive_callback, CURL_OnComplete:complete_callback, SendRecv_Act:act, timeout, recv_buffer_Size = 512, any:data=0);
 native bool:curl_send_recv_Signal(Handle:hndl, SendRecv_Act:act);
-native curl_set_send_buffer(Handle:hndl, const String:buffer[]);
+native bool:curl_send_recv_IsWaiting(Handle:hndl);
+native curl_set_send_buffer(Handle:hndl, const any:buffer[], size=0);
 
 
 native curl_get_error_buffer(Handle:hndl, String:buffer[], maxlen);
@@ -138,6 +139,13 @@ native curl_protocols(String:buffer[], maxlen);
 native curl_features();
 
 
+/*
+curl_OpenFile
+curl_httppost
+curl_slist
+should not shared to another curl handle, & these handle will free when curl handle close
+*/
+
 // Can't use sourcemod OpenFile..., for CURLOPT_WRITEDATA, CURLOPT_HEADERDATA, CURLOPT_READDATA, CURLOPT_STDERR, CURLOPT_INTERLEAVEDATA
 native Handle:curl_OpenFile(const String:file[], const String:mode[]);
 
@@ -152,7 +160,7 @@ native Handle:curl_slist();
 native curl_slist_append(Handle:hndl, const String:buffer[]);
 
 
-public CURL_Default_Perform_CallBack(Handle:curl, CURLcode: code) { }
+public CURL_Default_Perform_CallBack(Handle:hndl, CURLcode: code) { }
 
 
 /**

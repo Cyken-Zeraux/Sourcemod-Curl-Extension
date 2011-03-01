@@ -38,14 +38,6 @@ enum cURLThread_Func {
 	cURLThread_Func_LAST,
 };
 
-
-struct cURL_slist_pack {
-	cURL_slist_pack():chunk(NULL)
-	{
-	}
-	curl_slist *chunk;
-};
-
 struct cURLOpt_string {
 	CURLoption opt;
 	char *value;
@@ -64,6 +56,7 @@ struct cURLOpt_int64 {
 struct cURLOpt_pointer {
 	CURLoption opt;
 	void *value;
+	void *handle_obj;
 };
 
 struct cURLHandle {
@@ -91,7 +84,15 @@ struct cURLHandle {
 	/* use for send & recv */
 	long sockextr;
 	long timeout;
-	char *send_buffer;
+	unsigned char *send_buffer;
+	unsigned int send_buffer_length;
+};
+
+struct cURL_slist_pack {
+	cURL_slist_pack():chunk(NULL)
+	{
+	}
+	curl_slist *chunk;
 };
 
 struct WebForm {
@@ -111,10 +112,8 @@ public:
 public:
 	bool IsShutdown();
 
-	void test();
-
 public:
-	void MakecURLThread(cURLThread *thread);
+	void CreatecURLThread(cURLThread *thread);
 	void RemovecURLThread(cURLThread *thread);
 
 public:
@@ -125,6 +124,9 @@ public:
 	bool AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *handle, HandleSecurity *sec, CURLoption opt, Handle_t hndl);
 	void LoadcURLOption(cURLHandle *handle);
 
+private:
+	void FreeOptionPointer(cURLOpt_pointer *pInfo);
+		
 public:
 	CURLFORMcode cURLFormAdd(IPluginContext *pContext, const cell_t *params, WebForm *handle);
 

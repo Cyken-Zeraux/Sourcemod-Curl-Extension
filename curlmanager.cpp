@@ -60,7 +60,7 @@ void cURLManager::SDK_OnUnload()
 	curlhandle_list_mutex->Lock();
 	if(g_cURLThread_List.size() > 0)
 	{
-		printf("[CURL] Waiting %d CURL Threads Terminate...\n",g_cURLThread_List.size());		
+		printf("[%s] Waiting %d cURL Threads Terminate...\n",SMEXT_CONF_LOGTAG,g_cURLThread_List.size());		
 
 		SourceHook::List<cURLThread *>::iterator iter = g_cURLThread_List.begin();
 		cURLThread *pInfo;
@@ -78,7 +78,7 @@ void cURLManager::SDK_OnUnload()
 		waiting = true;
 		shutdown_event->Wait();
 
-		printf("[CURL] All CURL Thread Terminated !!!\n");
+		printf("[%s] All cURL Thread Terminated !!!\n",SMEXT_CONF_LOGTAG);
 	} else {
 		curlhandle_list_mutex->Unlock();
 	}
@@ -101,7 +101,7 @@ void cURLManager::SDK_OnUnload()
 	OPENSSL_free(ssl_lockarray);
 }
 
-void cURLManager::MakecURLThread(cURLThread *thread)
+void cURLManager::CreatecURLThread(cURLThread *thread)
 {
 	if(shutdown)
 	{
@@ -117,6 +117,11 @@ void cURLManager::MakecURLThread(cURLThread *thread)
 
 void cURLManager::RemovecURLThread(cURLThread *thread)
 {
+	if(shutdown)
+	{
+		RemovecURLHandle(thread->handle);
+	}
+
 	curlhandle_list_mutex->Lock();
 	g_cURLThread_List.remove(thread);
 
@@ -132,14 +137,46 @@ void cURLManager::RemovecURLThread(cURLThread *thread)
 	curlhandle_list_mutex->Unlock();
 }
 
-void cURLManager::test()
-{
-	printf("%d\n",g_cURLThread_List.size());
-}
-
 bool cURLManager::IsShutdown()
 {
 	return shutdown;
+}
+
+void cURLManager::FreeOptionPointer(cURLOpt_pointer *pInfo)
+{
+	switch(pInfo->opt)
+	{
+		case CURLOPT_WRITEDATA:
+		case CURLOPT_HEADERDATA:
+		case CURLOPT_READDATA:
+		case CURLOPT_STDERR:
+		case CURLOPT_INTERLEAVEDATA:
+		{
+			fclose((FILE *)pInfo->handle_obj);
+			break;
+		}
+		case CURLOPT_HTTPPOST:
+		{
+			WebForm *httpost = (WebForm *)pInfo->handle_obj;
+			curl_formfree(httpost->first);
+			delete httpost;
+			break;
+		}
+		case CURLOPT_HTTPHEADER:
+		case CURLOPT_QUOTE:
+		case CURLOPT_POSTQUOTE:
+		case CURLOPT_TELNETOPTIONS:
+		case CURLOPT_PREQUOTE:
+		case CURLOPT_HTTP200ALIASES:
+		case CURLOPT_MAIL_RCPT:
+		case CURLOPT_RESOLVE:
+		{
+			cURL_slist_pack *slist = (cURL_slist_pack *)pInfo->handle_obj;
+			curl_slist_free_all(slist->chunk); 
+			delete slist;
+			break;
+		}
+	}
 }
 
 void cURLManager::RemovecURLHandle(cURLHandle *handle)
@@ -147,6 +184,7 @@ void cURLManager::RemovecURLHandle(cURLHandle *handle)
 	if(!handle || handle->running)
 		return;
 	
+	handle->thread->handle = NULL;
 	curl_easy_cleanup(handle->curl);
 	handle->curl = NULL;
 
@@ -174,6 +212,7 @@ void cURLManager::RemovecURLHandle(cURLHandle *handle)
 	for(iter3=handle->opt_pointer_list.begin(); iter3!=handle->opt_pointer_list.end(); iter3++)
 	{
 		pInfo3 = (*iter3);
+		FreeOptionPointer(pInfo3);
 		delete pInfo3;
 	}
 	handle->opt_pointer_list.clear();
@@ -421,6 +460,8 @@ bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *hand
 
 	void *pointer = NULL;
 	int err = SP_ERROR_NONE;
+	void *handle_obj;
+
 	switch(opt)
 	{
 		case CURLOPT_WRITEDATA:
@@ -432,14 +473,17 @@ bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *hand
 			FILE *pFile = NULL;
 			err = handlesys->ReadHandle(hndl, g_cURLFile, sec, (void **)&pFile);
 			pointer = pFile;
+			handle_obj = pFile;
 			break;
 		}
 		case CURLOPT_HTTPPOST:
 		{
 			WebForm *webform = NULL;
 			err = handlesys->ReadHandle(hndl, g_WebForm, sec, (void **)&webform);
-			if(webform != NULL)
+			if(webform != NULL) {
 				pointer = webform->first;
+				handle_obj = webform;
+			}
 			break;
 		}
 		case CURLOPT_HTTPHEADER:
@@ -453,8 +497,10 @@ bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *hand
 		{
 			cURL_slist_pack *data = NULL;
 			err = handlesys->ReadHandle(hndl, g_cURLSlist, sec, (void **)&data);
-			if(data != NULL)
+			if(data != NULL) {
 				pointer = data->chunk;
+				handle_obj = data;
+			}
 			break;
 		}
 	}
@@ -473,6 +519,7 @@ bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *hand
 	cURLOpt_pointer *pointeropt = new cURLOpt_pointer();
 	pointeropt->opt = opt;
 	pointeropt->value = pointer;
+	pointeropt->handle_obj = handle_obj;
 
 	handle->opt_pointer_list.push_back(pointeropt);
 	return true;

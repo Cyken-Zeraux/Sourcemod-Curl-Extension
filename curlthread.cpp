@@ -1,7 +1,5 @@
 
 #include "curlthread.h"
-#include <openssl/crypto.h>
-
 
 static int wait_on_socket(curl_socket_t sockfd, int for_recv, long timeout_ms)
 {
@@ -34,7 +32,6 @@ handle(_handle),type(_type),event(NULL),last_iolen(0),recv_buffer_size(0),recv_b
 waiting(false)
 {
 	assert((type > cURLThread_Type_NOTHING && type < cURLThread_Type_LAST));
-	handle->running = true;
 	handle->thread = this;
 	event = threader->MakeEventSignal();
 	assert((event != NULL));
@@ -79,14 +76,6 @@ bool cURLThread::IsWaiting()
 	return waiting;
 }
 
-/*void cURLThread::EventWait()
-{
-	assert((event != NULL));
-	waiting = true;
-	event->Wait();
-	waiting = false;
-}*/
-
 char *cURLThread::GetBuffer()
 {
 	return recv_buffer;
@@ -117,8 +106,6 @@ void cURLThread::RunThread_Perform()
 
 	if(handle->lasterror != CURLE_OK)
 		return;
-
-	//g_cURLManager.test();
 	
 	if((handle->lasterror = curl_easy_perform(handle->curl)) != CURLE_OK)
 		return;
@@ -140,6 +127,7 @@ static void curl_send_FramAction(void *data)
 	{
 		cell_t result;
 		pFunc->PushCell(handle->hndl);
+		pFunc->PushCell(handle->lasterror);
 		pFunc->PushCell(thread->last_iolen);
 		pFunc->PushCell(handle->UserData[1]);
 		pFunc->Execute(&result);
@@ -163,6 +151,7 @@ static void curl_recv_FramAction(void *data)
 	{
 		cell_t result;
 		pFunc->PushCell(handle->hndl);
+		pFunc->PushCell(handle->lasterror);
 		pFunc->PushStringEx(thread->GetBuffer(), thread->last_iolen, SM_PARAM_STRING_COPY|SM_PARAM_STRING_BINARY, 0);
 		pFunc->PushCell(thread->last_iolen);
 		pFunc->PushCell(handle->UserData[1]);
@@ -172,14 +161,15 @@ static void curl_recv_FramAction(void *data)
 	thread->EventSignal();
 }
 
-CURLcode cURLThread::RunThread_Send_Recv()
+void cURLThread::RunThread_Send_Recv()
 {
 	assert((handle->sockextr != INVALID_SOCKET));
 
 	if(handle->sockextr == INVALID_SOCKET || event == NULL)
-		return CURLE_SEND_ERROR;
-
-	CURLcode res = CURLE_OK;
+	{
+		handle->lasterror = CURLE_SEND_ERROR;
+		return;
+	}
 
 /* Select Action */
 select_action:
@@ -195,6 +185,25 @@ select_action:
 
 /* Send Action */
 act_send:
+	if(!wait_on_socket(handle->sockextr, 0, handle->timeout))
+	{
+		handle->lasterror = CURLE_OPERATION_TIMEDOUT;
+		goto sm_send_frame;
+	}
+
+	if(handle->send_buffer == NULL)
+	{
+		handle->lasterror = CURLE_SEND_ERROR;	
+		goto sm_send_frame;
+	}
+	
+	// TODO: binary data, send_buffer no use pointer, make a copy
+	handle->lasterror = curl_easy_send(handle->curl, handle->send_buffer, handle->send_buffer_length, &last_iolen);
+	delete handle->send_buffer;
+	handle->send_buffer = NULL;
+
+	// put res to frame, let frame do action
+sm_send_frame:
 	smutils->AddFrameAction(curl_send_FramAction, this);
 	waiting = true;
 	event->Wait();
@@ -202,39 +211,29 @@ act_send:
 	if(g_cURLManager.IsShutdown())
 		goto act_end;
 
-	if(!wait_on_socket(handle->sockextr, 0, handle->timeout))
-		return CURLE_OPERATION_TIMEDOUT;
-
-	if(handle->send_buffer == NULL)  // wtf
-		return CURLE_SEND_ERROR;		
-	
-	// TODO: binary data
-	res = curl_easy_send(handle->curl, handle->send_buffer, strlen(handle->send_buffer), &last_iolen);
-	handle->send_buffer = NULL;
-	if(res != CURLE_OK)
-		return res;
-
 	goto select_action;
-
 
 
 /* Recv Action */
 act_recv:
 	if(!wait_on_socket(handle->sockextr, 1, handle->timeout))
-		return CURLE_OPERATION_TIMEDOUT;
+	{
+		handle->lasterror = CURLE_OPERATION_TIMEDOUT;
+		goto sm_recv_frame;
+	}
 	
 	memset(recv_buffer, 0, recv_buffer_size);
-	res = curl_easy_recv(handle->curl, recv_buffer, recv_buffer_size, &last_iolen);
-	if(res != CURLE_OK)
-		return res;	
+	handle->lasterror = curl_easy_recv(handle->curl, recv_buffer, recv_buffer_size, &last_iolen);
 	
+sm_recv_frame:
 	smutils->AddFrameAction(curl_recv_FramAction, this);
 	goto act_wait;
 
 
-
 /* Wait Action */
 act_wait:
+	if(g_cURLManager.IsShutdown())
+		goto act_end;
 	waiting = true;
 	event->Wait();
 	waiting = false;
@@ -246,7 +245,7 @@ act_wait:
 
 /* End Action */
 act_end:
-	return res;
+	return;
 }
 
 
@@ -256,7 +255,7 @@ void cURLThread::RunThread(IThreadHandle *pHandle)
 	{
 		RunThread_Perform();
 	} else if(type == cURLThread_Type_SEND_RECV) {
-		handle->lasterror = RunThread_Send_Recv();
+		RunThread_Send_Recv();
 	}
 }
 
@@ -285,10 +284,12 @@ static void cUrl_Thread_Finish(void *data)
 void cURLThread::OnTerminate(IThreadHandle *pHandle, bool cancel)
 {
 	handle->running = false;
-	if(g_cURLManager.IsShutdown())
+	/*if(g_cURLManager.IsShutdown()) // if unload ext??
 	{
 		g_cURLManager.RemovecURLHandle(handle);
-	} else {
+	} else {*/
+	if(!g_cURLManager.IsShutdown())
+	{
 		smutils->AddFrameAction(cUrl_Thread_Finish, this);
 		waiting = true;
 		event->Wait();
