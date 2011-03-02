@@ -126,7 +126,6 @@ static cell_t sm_curl_easy_perform_thread(IPluginContext *pContext, const cell_t
 
 	handle->UserData[0] = params[3];	
 	handle->callback_Function[cURLThread_Func_COMPLETE] = pFunction;
-	handle->running = true;
 	cURLThread *thread = new cURLThread(handle, cURLThread_Type_PERFORM);
 	g_cURLManager.CreatecURLThread(thread);
 
@@ -139,6 +138,7 @@ static cell_t sm_curl_easy_perform(IPluginContext *pContext, const cell_t *param
 	
 	handle->running = true;
 	CURLcode code = curl_easy_perform(handle->curl);
+	handle->running = false;
 	curl_easy_getinfo(handle->curl, CURLINFO_LASTSOCKET, &handle->sockextr);
 
 	return code;
@@ -275,14 +275,14 @@ static cell_t sm_curl_easy_send_recv(IPluginContext *pContext, const cell_t *par
 		return pContext->ThrowNativeError("Invalid function %x", params[4]);
 	}
 
-	handle->timeout = params[6];
-	handle->UserData[1] = params[8];
+	handle->send_timeout = params[6];
+	handle->recv_timeout = params[7];
+	handle->UserData[1] = params[9];
 	handle->callback_Function[cURLThread_Func_SEND] = pFunction_send;
 	handle->callback_Function[cURLThread_Func_RECV] = pFunction_recv;
 	handle->callback_Function[cURLThread_Func_COMPLETE] = pFunction_complete;
-	handle->running = true;
 	cURLThread *thread = new cURLThread(handle, cURLThread_Type_SEND_RECV);
-	thread->SetRecvBufferSize(params[7]);
+	thread->SetRecvBufferSize(params[8]);
 	thread->SetSenRecvAction((SendRecv_Act)params[5]);
 	g_cURLManager.CreatecURLThread(thread);
 
@@ -354,19 +354,15 @@ static cell_t sm_curl_set_send_buffer(IPluginContext *pContext, const cell_t *pa
 	handle->send_buffer = new unsigned char[handle->send_buffer_length];
 	memcpy(handle->send_buffer, buffer, handle->send_buffer_length);
 
-	/*unsigned char sss[256];
-	memset(sss, 0 ,sizeof(sss));
-	memcpy(sss, buffer, handle->send_buffer_length);*/
-
 	return 1;
 }
 
+static cell_t sm_curl_close_opt_handles(IPluginContext *pContext, const cell_t *params)
+{
+	SETUP_CURL_HANDLE();
 
-
-
-
-
-
+	return 1;
+}
 
 /* Stuff */
 static cell_t sm_curl_version(IPluginContext *pContext, const cell_t *params)
@@ -487,6 +483,8 @@ sp_nativeinfo_t g_cURLNatives[] =
 	{"curl_set_send_buffer",		sm_curl_set_send_buffer},
 	{"curl_send_recv_Signal",		sm_curl_send_recv_Signal},
 	{"curl_send_recv_IsWaiting",	sm_curl_send_recv_IsWaiting},
+
+	{"curl_close_opt_handles",		sm_curl_close_opt_handles},
 
 	{"curl_version",				sm_curl_version},
 	{"curl_features",				sm_curl_features},

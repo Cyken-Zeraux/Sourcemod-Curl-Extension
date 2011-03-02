@@ -115,7 +115,7 @@ native CURLcode:curl_load_opt(Handle:hndl);
 native CURLcode:curl_easy_perform(Handle:hndl);
 native curl_easy_perform_thread(Handle:hndl, CURL_OnComplete:perform_callback=CURL_Default_Perform_CallBack, any:data=0);
 
-native curl_easy_send_recv(Handle:hndl, CURL_OnSend:send_callback, CURL_OnReceive:receive_callback, CURL_OnComplete:complete_callback, SendRecv_Act:act, timeout, recv_buffer_Size = 512, any:data=0);
+native curl_easy_send_recv(Handle:hndl, CURL_OnSend:send_callback, CURL_OnReceive:receive_callback, CURL_OnComplete:complete_callback, SendRecv_Act:act, send_timeout, recv_timeout, recv_buffer_Size = 1024, any:data=0);
 native bool:curl_send_recv_Signal(Handle:hndl, SendRecv_Act:act);
 native bool:curl_send_recv_IsWaiting(Handle:hndl);
 native curl_set_send_buffer(Handle:hndl, const any:buffer[], size=0);
@@ -143,10 +143,12 @@ native curl_features();
 curl_OpenFile
 curl_httppost
 curl_slist
-should not shared to another curl handle, & these handle will free when curl handle close
+*should* not shared to another curl handle, & these handle will free when curl handle close
+use CloseHandle(file) won't close the file, just let sourcemod know the handle closed,
+close the cURL handle will close these handle
 */
 
-// Can't use sourcemod OpenFile..., for CURLOPT_WRITEDATA, CURLOPT_HEADERDATA, CURLOPT_READDATA, CURLOPT_STDERR, CURLOPT_INTERLEAVEDATA
+// for CURLOPT_WRITEDATA, CURLOPT_HEADERDATA, CURLOPT_READDATA, CURLOPT_STDERR, CURLOPT_INTERLEAVEDATA
 native Handle:curl_OpenFile(const String:file[], const String:mode[]);
 
 

@@ -9,11 +9,16 @@ static IMutex **ssl_lockarray;
 static size_t curl_write_function(void *ptr, size_t bytes, size_t nmemb, void *stream)
 {
 	FILE *file = (FILE *)stream;
-	if(file->_file == 3 || file->_file == 4)
+	if(file->_file >= 3)
 	{
 		return fwrite(ptr, bytes, nmemb, file); 
 	}
 	return bytes * nmemb;
+}
+
+static size_t curl_read_function(void *ptr, size_t size, size_t nmemb, void *data)
+{
+    return fread(ptr, size, nmemb, (FILE*)data);
 }
 
 static void ssl_locking_callback(int mode, int type, const char *file, int line)
@@ -184,7 +189,10 @@ void cURLManager::RemovecURLHandle(cURLHandle *handle)
 	if(!handle || handle->running)
 		return;
 	
-	handle->thread->handle = NULL;
+	if(handle->thread != NULL)
+	{
+		handle->thread->handle = NULL;
+	}
 	curl_easy_cleanup(handle->curl);
 	handle->curl = NULL;
 
@@ -225,6 +233,12 @@ void cURLManager::RemovecURLHandle(cURLHandle *handle)
 		delete pInfo4;
 	}
 	handle->opt_int64_list.clear();
+
+	if(handle->send_buffer != NULL)
+	{
+		delete handle->send_buffer;
+		handle->send_buffer = NULL;
+	}
 
 	delete handle;
 }

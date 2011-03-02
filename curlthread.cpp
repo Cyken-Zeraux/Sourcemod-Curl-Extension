@@ -32,6 +32,7 @@ handle(_handle),type(_type),event(NULL),last_iolen(0),recv_buffer_size(0),recv_b
 waiting(false)
 {
 	assert((type > cURLThread_Type_NOTHING && type < cURLThread_Type_LAST));
+	handle->running = true;
 	handle->thread = this;
 	event = threader->MakeEventSignal();
 	assert((event != NULL));
@@ -40,7 +41,6 @@ waiting(false)
 cURLThread::~cURLThread()
 {
 	waiting = false;
-
 	if(event != NULL)
 	{
 		event->DestroyThis();
@@ -90,7 +90,6 @@ void cURLThread::SetRecvBufferSize(unsigned int size)
 		size = 1024;
 
 	recv_buffer_size = size;
-
 	recv_buffer = new char[recv_buffer_size];
 }
 
@@ -185,7 +184,7 @@ select_action:
 
 /* Send Action */
 act_send:
-	if(!wait_on_socket(handle->sockextr, 0, handle->timeout))
+	if(!wait_on_socket(handle->sockextr, 0, handle->send_timeout))
 	{
 		handle->lasterror = CURLE_OPERATION_TIMEDOUT;
 		goto sm_send_frame;
@@ -197,7 +196,6 @@ act_send:
 		goto sm_send_frame;
 	}
 	
-	// TODO: binary data, send_buffer no use pointer, make a copy
 	handle->lasterror = curl_easy_send(handle->curl, handle->send_buffer, handle->send_buffer_length, &last_iolen);
 	delete handle->send_buffer;
 	handle->send_buffer = NULL;
@@ -216,7 +214,7 @@ sm_send_frame:
 
 /* Recv Action */
 act_recv:
-	if(!wait_on_socket(handle->sockextr, 1, handle->timeout))
+	if(!wait_on_socket(handle->sockextr, 1, handle->recv_timeout))
 	{
 		handle->lasterror = CURLE_OPERATION_TIMEDOUT;
 		goto sm_recv_frame;
@@ -284,10 +282,6 @@ static void cUrl_Thread_Finish(void *data)
 void cURLThread::OnTerminate(IThreadHandle *pHandle, bool cancel)
 {
 	handle->running = false;
-	/*if(g_cURLManager.IsShutdown()) // if unload ext??
-	{
-		g_cURLManager.RemovecURLHandle(handle);
-	} else {*/
 	if(!g_cURLManager.IsShutdown())
 	{
 		smutils->AddFrameAction(cUrl_Thread_Finish, this);

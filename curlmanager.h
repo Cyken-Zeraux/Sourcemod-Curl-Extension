@@ -61,7 +61,7 @@ struct cURLOpt_pointer {
 
 struct cURLHandle {
 	cURLHandle():curl(NULL),running(false),lasterror(CURLE_OK),opt_loaded(false),
-		sockextr(INVALID_SOCKET),timeout(60000),send_buffer(NULL),thread(NULL)
+		sockextr(INVALID_SOCKET),send_timeout(60000),recv_timeout(60000),send_buffer(NULL),thread(NULL)
 	{
 		memset(errorBuffer,0,sizeof(errorBuffer));
 		memset(callback_Function, 0, sizeof(callback_Function));
@@ -83,7 +83,8 @@ struct cURLHandle {
 
 	/* use for send & recv */
 	long sockextr;
-	long timeout;
+	long send_timeout;
+	long recv_timeout;
 	unsigned char *send_buffer;
 	unsigned int send_buffer_length;
 };
