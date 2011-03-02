@@ -1,7 +1,7 @@
 /**
  * vim: set ts=4 :
  * =============================================================================
- * SourceMod Sample Extension
+ * SourceMod cURL Extension
  * Copyright (C) 2004-2008 AlliedModders LLC.  All rights reserved.
  * =============================================================================
  *
@@ -47,7 +47,16 @@ public:
 
 public:
 	void OnHandleDestroy(HandleType_t type, void *object);
+
+public:
+	bool IsShutdown();
+
+private:
+	bool shutdown;
+
 };
+
+extern cURL_SM g_cURL_SM;
 
 extern HandleType_t g_cURLHandle;
 extern HandleType_t g_cURLFile;
@@ -57,4 +66,5 @@ extern HandleType_t g_cURLSlist;
 extern IdentityToken_t *myself_Identity ;
 
 
-#endif // _INCLUDE_SOURCEMOD_EXTENSION_PROPER_H_
+#endif
+

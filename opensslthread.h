@@ -6,8 +6,7 @@
 
 enum OpensslThread_Type;
 
-class OpensslThread :
-		public IThread
+class OpensslThread : public IThread
 {
 	friend class OpensslManager;
 
@@ -29,3 +28,4 @@ private:
 
 
 #endif
+

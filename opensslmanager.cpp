@@ -359,3 +359,4 @@ bool OpensslManager::HashString(Openssl_Hash algorithm, unsigned char *input, in
 
 	return false;
 }
+

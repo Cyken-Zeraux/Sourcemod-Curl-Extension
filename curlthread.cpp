@@ -206,7 +206,7 @@ sm_send_frame:
 	waiting = true;
 	event->Wait();
 	waiting = false;
-	if(g_cURLManager.IsShutdown())
+	if(g_cURL_SM.IsShutdown())
 		goto act_end;
 
 	goto select_action;
@@ -230,12 +230,12 @@ sm_recv_frame:
 
 /* Wait Action */
 act_wait:
-	if(g_cURLManager.IsShutdown())
+	if(g_cURL_SM.IsShutdown())
 		goto act_end;
 	waiting = true;
 	event->Wait();
 	waiting = false;
-	if(g_cURLManager.IsShutdown())
+	if(g_cURL_SM.IsShutdown())
 		goto act_end;
 	goto select_action; // select action again
 
@@ -282,7 +282,7 @@ static void cUrl_Thread_Finish(void *data)
 void cURLThread::OnTerminate(IThreadHandle *pHandle, bool cancel)
 {
 	handle->running = false;
-	if(!g_cURLManager.IsShutdown())
+	if(!g_cURL_SM.IsShutdown())
 	{
 		smutils->AddFrameAction(cUrl_Thread_Finish, this);
 		waiting = true;

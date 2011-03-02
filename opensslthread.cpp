@@ -98,4 +98,3 @@ void OpensslThread::OnTerminate(IThreadHandle *pHandle, bool cancel)
 	delete this;
 }
 
-

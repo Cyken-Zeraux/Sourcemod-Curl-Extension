@@ -10,8 +10,7 @@ enum cURLThread_Func;
 enum cURLThread_Type;
 enum SendRecv_Act;
 
-class cURLThread :
-	public IThread
+class cURLThread :	public IThread
 {
 	friend class cURLManager;
 
@@ -49,3 +48,4 @@ public:
 
 
 #endif
+

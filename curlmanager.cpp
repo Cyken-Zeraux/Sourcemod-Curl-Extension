@@ -19,13 +19,10 @@ void cURLManager::SDK_OnLoad()
 	shutdown_event = threader->MakeEventSignal();
 
 	waiting = false;
-	shutdown = false;
 }
 
 void cURLManager::SDK_OnUnload()
 {
-	shutdown = true;
-
 	curlhandle_list_mutex->Lock();
 	if(g_cURLThread_List.size() > 0)
 	{
@@ -63,7 +60,7 @@ void cURLManager::SDK_OnUnload()
 
 void cURLManager::CreatecURLThread(cURLThread *thread)
 {
-	if(shutdown)
+	if(g_cURL_SM.IsShutdown())
 	{
 		delete thread;
 		return;
@@ -77,7 +74,7 @@ void cURLManager::CreatecURLThread(cURLThread *thread)
 
 void cURLManager::RemovecURLThread(cURLThread *thread)
 {
-	if(shutdown)
+	if(g_cURL_SM.IsShutdown())
 	{
 		RemovecURLHandle(thread->handle);
 	}
@@ -95,11 +92,6 @@ void cURLManager::RemovecURLThread(cURLThread *thread)
 		}
 	}
 	curlhandle_list_mutex->Unlock();
-}
-
-bool cURLManager::IsShutdown()
-{
-	return shutdown;
 }
 
 void cURLManager::FreeOptionPointer(cURLOpt_pointer *pInfo)
@@ -660,3 +652,5 @@ CURLFORMcode cURLManager::cURLFormAdd(IPluginContext *pContext, const cell_t *pa
 		);
 	return ret;
 }
+
+

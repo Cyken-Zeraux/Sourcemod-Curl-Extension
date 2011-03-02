@@ -112,9 +112,6 @@ public:
 	void SDK_OnUnload();
 
 public:
-	bool IsShutdown();
-
-public:
 	void CreatecURLThread(cURLThread *thread);
 	void RemovecURLThread(cURLThread *thread);
 
@@ -133,7 +130,6 @@ public:
 	CURLFORMcode cURLFormAdd(IPluginContext *pContext, const cell_t *params, WebForm *handle);
 
 private:
-	bool shutdown;
 	bool waiting;
 	IMutex *curlhandle_list_mutex;
 	IEventSignal *shutdown_event;
@@ -142,5 +138,5 @@ private:
 
 extern cURLManager g_cURLManager;
 
-
 #endif
+

@@ -1,7 +1,7 @@
 /**
  * vim: set ts=4 :
  * =============================================================================
- * SourceMod Sample Extension
+ * SourceMod cURL Extension
  * Copyright (C) 2004-2008 AlliedModders LLC.  All rights reserved.
  * =============================================================================
  *
@@ -39,8 +39,8 @@
 
 /* Basic information exposed publicly */
 #define SMEXT_CONF_NAME			"cURL Extension"
-#define SMEXT_CONF_DESCRIPTION	"cURL v7.21.4"
-#define SMEXT_CONF_VERSION		"0.0.0.1"
+#define SMEXT_CONF_DESCRIPTION	"cURL Extension"
+#define SMEXT_CONF_VERSION		"1.0.0.0"
 #define SMEXT_CONF_AUTHOR		"ben"
 #define SMEXT_CONF_URL			"http://www.ZombieX2.net/"
 #define SMEXT_CONF_LOGTAG		"cURL"
