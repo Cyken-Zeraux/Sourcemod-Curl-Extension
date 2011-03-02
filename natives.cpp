@@ -1,6 +1,7 @@
 
 #include "extension.h"
 #include "curlmanager.h"
+#include "opensslmanager.h"
 #include <sh_string.h>
 #include <curl/curl.h>
 
@@ -461,6 +462,66 @@ static cell_t sm_curl_slist(IPluginContext *pContext, const cell_t *params)
 	return hndl;
 }
 
+static cell_t sm_openssl_hash_file(IPluginContext *pContext, const cell_t *params)
+{
+	IPluginFunction *pFunction = pContext->GetFunctionById(params[3]);
+	if(!pFunction)
+	{
+		return pContext->ThrowNativeError("Invalid function %x", params[3]);
+	}
+
+	char *filepath;
+	pContext->LocalToString(params[1], &filepath);
+	int len = strlen(filepath);
+
+	Openssl_Hash_pack *hash_pack = new Openssl_Hash_pack();
+	hash_pack->UserData = params[3];
+	hash_pack->path = new char[len+1];
+	strncpy(hash_pack->path, filepath, len);
+	hash_pack->path[len] = '\0';
+
+	hash_pack->hash_callback = pFunction;
+	hash_pack->algorithm = (Openssl_Hash)params[2];
+
+	OpensslThread *thread =  new OpensslThread(hash_pack, OpensslThread_Type_HASH_FILE);
+	threader->MakeThread(thread);
+	
+	return 1;
+}
+
+static cell_t sm_openssl_hash(IPluginContext *pContext, const cell_t *params)
+{
+	char *input;
+	unsigned int data_size = (unsigned int)params[2];
+	if(data_size > 0)
+	{
+		cell_t *addr;
+		pContext->LocalToPhysAddr(params[1], &addr);
+		input = (char *)addr;
+		data_size = params[2];		
+	} else {		
+		pContext->LocalToString(params[1], &input);
+		data_size = strlen(input);
+	}
+
+	unsigned char output[128];
+	int outlength = 0;
+	bool ret = g_OpensslManager.HashString((Openssl_Hash)params[3], (unsigned char *)input, data_size, &output[0], &outlength);
+	if(!ret || outlength == 0)
+		return 0;
+
+	char buffer[256];
+	int pos = 0;
+	for(int i=0; i<outlength; i++)
+	{
+		sprintf(&buffer[pos],"%02x",(unsigned char)output[i]);
+		pos+=2;
+	}
+	size_t bytes;
+	pContext->StringToLocalUTF8(params[4], params[5], buffer, &bytes);
+	return 1;
+}
+
 sp_nativeinfo_t g_cURLNatives[] = 
 { 
 	{"curl_easy_init",				sm_curl_easy_init},
@@ -496,5 +557,9 @@ sp_nativeinfo_t g_cURLNatives[] =
 
 	{"curl_slist_append",			sm_curl_slist_append},
 	{"curl_slist",					sm_curl_slist},
+
+	{"openssl_hash_file",			sm_openssl_hash_file},
+	{"openssl_hash",				sm_openssl_hash},
+
 	{NULL,							NULL}
 };

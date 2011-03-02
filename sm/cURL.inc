@@ -99,6 +99,27 @@ funcenum CURL_OnReceive
 }
 
 
+/* OpenSSL */
+enum Openssl_Hash {
+	Openssl_Hash_MD5 = 0,
+	Openssl_Hash_MD4,
+	Openssl_Hash_MD2,
+	Openssl_Hash_SHA,
+	Openssl_Hash_SHA1,
+	Openssl_Hash_SHA224,
+	Openssl_Hash_SHA256,
+	Openssl_Hash_SHA384,
+	Openssl_Hash_SHA512,
+	Openssl_Hash_RIPEMD160,
+};
+
+
+funcenum OPENSSL_Hash_Complete
+{
+	public(const bool:success, const String:buffer[]),
+	public(const bool:success, const String:buffer[], any:data),
+}
+
 native Handle:curl_easy_init();
 
 
@@ -160,6 +181,12 @@ native bool:curl_formadd(Handle:handl, any:...);
 // struct curl_slist, for CURLOPT_QUOTE, CURLOPT_HTTPHEADER, CURLOPT_POSTQUOTE, CURLOPT_TELNETOPTIONS, CURLOPT_PREQUOTE, CURLOPT_HTTP200ALIASES, CURLOPT_MAIL_RCPT, CURLOPT_RESOLVE
 native Handle:curl_slist();
 native curl_slist_append(Handle:hndl, const String:buffer[]);
+
+
+/* OpenSSL */
+native openssl_hash_file(const String:file[], Openssl_Hash:type, OPENSSL_Hash_Complete:complete_callback, any:data=0);
+native bool:openssl_hash(const String:input[], dataSize, Openssl_Hash:type, String:buffer[], maxlength);
+
 
 
 public CURL_Default_Perform_CallBack(Handle:hndl, CURLcode: code) { }

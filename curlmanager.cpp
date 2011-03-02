@@ -1,10 +1,7 @@
 
 #include "curlmanager.h"
-#include <openssl/crypto.h>
 
 cURLManager g_cURLManager;
-
-static IMutex **ssl_lockarray;
 
 static size_t curl_write_function(void *ptr, size_t bytes, size_t nmemb, void *stream)
 {
@@ -16,28 +13,6 @@ static size_t curl_write_function(void *ptr, size_t bytes, size_t nmemb, void *s
 	return bytes * nmemb;
 }
 
-static size_t curl_read_function(void *ptr, size_t size, size_t nmemb, void *data)
-{
-    return fread(ptr, size, nmemb, (FILE*)data);
-}
-
-static void ssl_locking_callback(int mode, int type, const char *file, int line)
-{
-    if(mode & CRYPTO_LOCK)
-    {
-		ssl_lockarray[type]->Lock();
-    } else {
-		ssl_lockarray[type]->Unlock();
-    }
-}
-
-#ifdef PLATFORM_LINUX
-static unsigned long ssl_id_function(void)
-{
-	return ((unsigned long)getpid());
-}
-#endif
-
 void cURLManager::SDK_OnLoad()
 {
 	curlhandle_list_mutex = threader->MakeMutex();
@@ -45,17 +20,6 @@ void cURLManager::SDK_OnLoad()
 
 	waiting = false;
 	shutdown = false;
-
-	ssl_lockarray = (IMutex **)OPENSSL_malloc(CRYPTO_num_locks() * sizeof(IMutex *));
-	for(int i = 0; i < CRYPTO_num_locks(); i++)
-    {
-		ssl_lockarray[i] = threader->MakeMutex();
-	}
-
-#ifdef PLATFORM_LINUX
-	CRYPTO_set_id_callback(ssl_id_function);
-#endif
-	CRYPTO_set_locking_callback(ssl_locking_callback);
 }
 
 void cURLManager::SDK_OnUnload()
@@ -95,15 +59,6 @@ void cURLManager::SDK_OnUnload()
 	curlhandle_list_mutex = NULL;
 	g_cURLThread_List.clear();
 
-#ifdef PLATFORM_LINUX
-	CRYPTO_set_id_callback(NULL);
-#endif
-	CRYPTO_set_locking_callback(NULL);
-	for (int i=0; i<CRYPTO_num_locks(); i++)
-	{
-		ssl_lockarray[i]->DestroyThis();
-	} 
-	OPENSSL_free(ssl_lockarray);
 }
 
 void cURLManager::CreatecURLThread(cURLThread *thread)

@@ -110,6 +110,7 @@ class cURLManager
 public:
 	void SDK_OnLoad();
 	void SDK_OnUnload();
+
 public:
 	bool IsShutdown();
 
