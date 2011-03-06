@@ -5,10 +5,6 @@
 #include "curlmanager.h"
 #include <curl/curl.h>
 
-struct cURLHandle;
-enum cURLThread_Func;
-enum cURLThread_Type;
-enum SendRecv_Act;
 
 class cURLThread :	public IThread
 {
@@ -24,7 +20,7 @@ public:
 	char *GetBuffer();
 	void SetRecvBufferSize(unsigned int size);
 	void SetSenRecvAction(SendRecv_Act act);
-
+	
 public:
 	void RunThread(IThreadHandle *pHandle);
 	void OnTerminate(IThreadHandle *pHandle, bool cancel);

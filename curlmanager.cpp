@@ -1,4 +1,3 @@
-
 #include "curlmanager.h"
 
 cURLManager g_cURLManager;
@@ -6,12 +5,15 @@ cURLManager g_cURLManager;
 static size_t curl_write_function(void *ptr, size_t bytes, size_t nmemb, void *stream)
 {
 	FILE *file = (FILE *)stream;
+#ifdef WIN32
 	if(file->_file >= 3)
+#else
+	if(file->_fileno >= 3)
+#endif
 	{
 		return fwrite(ptr, bytes, nmemb, file); 
 	}
-	return bytes * nmemb;
-}
+	return bytes * nmemb;}
 
 void cURLManager::SDK_OnLoad()
 {
@@ -232,9 +234,6 @@ bool cURLManager::AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *
 		case CURLOPT_RTSP_SESSION_ID:
 		case CURLOPT_RTSP_STREAM_URI:
 		case CURLOPT_RTSP_TRANSPORT:
-		case CURLOPT_TLSAUTH_USERNAME:
-		case CURLOPT_TLSAUTH_PASSWORD:
-		case CURLOPT_TLSAUTH_TYPE:
 			supported = true;
 			break;
 		case CURLOPT_COOKIEFILE:
@@ -263,7 +262,7 @@ bool cURLManager::AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *
 	assert((supported != false));
 	if(!supported)
 		return false;
-
+	
 	cURLOpt_string *stringopt = new cURLOpt_string();
 	stringopt->opt = opt;
 	stringopt->value = new char[strlen(value)+1];
@@ -421,7 +420,7 @@ bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *hand
 
 	void *pointer = NULL;
 	int err = SP_ERROR_NONE;
-	void *handle_obj;
+	void *handle_obj = NULL;
 
 	switch(opt)
 	{
@@ -550,7 +549,7 @@ CURLFORMcode cURLManager::cURLFormAdd(IPluginContext *pContext, const cell_t *pa
 	CURLformoption form_opts[11] = {CURLFORM_NOTHING};
 
 	char *form_data[10];
-	memset(form_data, NULL, sizeof(form_data));
+	memset(form_data, 0, sizeof(form_data));
 
 	cell_t *addr;
 	int count = 0;

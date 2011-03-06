@@ -1,5 +1,5 @@
-
 #include "curlthread.h"
+#include <string.h>
 
 static int wait_on_socket(curl_socket_t sockfd, int for_recv, long timeout_ms)
 {
@@ -28,14 +28,14 @@ static int wait_on_socket(curl_socket_t sockfd, int for_recv, long timeout_ms)
 
 
 cURLThread::cURLThread(cURLHandle *_handle, cURLThread_Type _type):
-handle(_handle),type(_type),event(NULL),last_iolen(0),recv_buffer_size(0),recv_buffer(NULL),
-waiting(false)
+waiting(false),handle(_handle),type(_type),event(threader->MakeEventSignal()),
+recv_buffer(NULL),recv_buffer_size(0),last_iolen(0)
+
 {
 	assert((type > cURLThread_Type_NOTHING && type < cURLThread_Type_LAST));
-	handle->running = true;
-	handle->thread = this;
-	event = threader->MakeEventSignal();
 	assert((event != NULL));
+	handle->running = true;
+	handle->thread = this;	
 }
 
 cURLThread::~cURLThread()
@@ -83,14 +83,10 @@ char *cURLThread::GetBuffer()
 
 void cURLThread::SetRecvBufferSize(unsigned int size)
 {
-	if(recv_buffer_size != 0)
-		return;
-
 	if(size == 0)
 		size = 1024;
 
 	recv_buffer_size = size;
-	recv_buffer = new char[recv_buffer_size];
 }
 
 void cURLThread::SetSenRecvAction(SendRecv_Act act)
@@ -195,7 +191,7 @@ act_send:
 		handle->lasterror = CURLE_SEND_ERROR;	
 		goto sm_send_frame;
 	}
-	
+
 	handle->lasterror = curl_easy_send(handle->curl, handle->send_buffer, handle->send_buffer_length, &last_iolen);
 	delete handle->send_buffer;
 	handle->send_buffer = NULL;
@@ -219,8 +215,16 @@ act_recv:
 		handle->lasterror = CURLE_OPERATION_TIMEDOUT;
 		goto sm_recv_frame;
 	}
-	
+
+	if(recv_buffer != NULL)
+	{
+		delete recv_buffer;
+		recv_buffer = NULL;
+	}
+
+	recv_buffer = new char[recv_buffer_size];
 	memset(recv_buffer, 0, recv_buffer_size);
+
 	handle->lasterror = curl_easy_recv(handle->curl, recv_buffer, recv_buffer_size, &last_iolen);
 	
 sm_recv_frame:

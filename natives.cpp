@@ -1,4 +1,4 @@
-
+#include <stdlib.h>
 #include "extension.h"
 #include "curlmanager.h"
 #include "opensslmanager.h"
@@ -42,6 +42,9 @@ static cell_t sm_curl_easy_init(IPluginContext *pContext, const cell_t *params)
 	}
 
 	cURLHandle *handle = new cURLHandle();
+	memset(handle->errorBuffer,0,sizeof(handle->errorBuffer));
+	memset(handle->callback_Function, 0, sizeof(handle->callback_Function));
+	memset(handle->UserData,0,sizeof(handle->UserData));
 	handle->curl = curl;
 
 	Handle_t hndl = handlesys->CreateHandle(g_cURLHandle, handle, pContext->GetIdentity(), myself_Identity, NULL);
@@ -104,7 +107,11 @@ static cell_t sm_curl_easy_setopt_int64(IPluginContext *pContext, const cell_t *
 	char *buffer;
 	pContext->LocalToString(params[3], &buffer);
 
-	long long value = _atoi64(buffer);
+#ifdef WIN32
+	long long int value = _atoi64(buffer);
+#else
+	long long int value = atoll(buffer);
+#endif
 	return g_cURLManager.AddcURLOptionInt64(handle, (CURLoption)params[2], value);
 }
 
@@ -358,6 +365,17 @@ static cell_t sm_curl_set_send_buffer(IPluginContext *pContext, const cell_t *pa
 	return 1;
 }
 
+static cell_t sm_curl_set_receive_size(IPluginContext *pContext, const cell_t *params)
+{
+	SETUP_CURL_HANDLE();
+
+	if(handle->thread != NULL)
+	{
+		handle->thread->SetRecvBufferSize((unsigned int)params[2]);
+	}
+	return 1;
+}
+
 static cell_t sm_curl_close_opt_handles(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
@@ -462,7 +480,7 @@ static cell_t sm_curl_slist(IPluginContext *pContext, const cell_t *params)
 	return hndl;
 }
 
-static cell_t sm_openssl_hash_file(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_hash_file(IPluginContext *pContext, const cell_t *params)
 {
 	IPluginFunction *pFunction = pContext->GetFunctionById(params[3]);
 	if(!pFunction)
@@ -489,7 +507,7 @@ static cell_t sm_openssl_hash_file(IPluginContext *pContext, const cell_t *param
 	return 1;
 }
 
-static cell_t sm_openssl_hash(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_hash_string(IPluginContext *pContext, const cell_t *params)
 {
 	char *input;
 	unsigned int data_size = (unsigned int)params[2];
@@ -544,6 +562,7 @@ sp_nativeinfo_t g_cURLNatives[] =
 	{"curl_set_send_buffer",		sm_curl_set_send_buffer},
 	{"curl_send_recv_Signal",		sm_curl_send_recv_Signal},
 	{"curl_send_recv_IsWaiting",	sm_curl_send_recv_IsWaiting},
+	{"curl_set_receive_size",		sm_curl_set_receive_size},
 
 	{"curl_close_opt_handles",		sm_curl_close_opt_handles},
 
@@ -558,8 +577,8 @@ sp_nativeinfo_t g_cURLNatives[] =
 	{"curl_slist_append",			sm_curl_slist_append},
 	{"curl_slist",					sm_curl_slist},
 
-	{"openssl_hash_file",			sm_openssl_hash_file},
-	{"openssl_hash",				sm_openssl_hash},
+	{"curl_hash_file",				sm_curl_hash_file},
+	{"curl_hash_string",			sm_curl_hash_string},
 
 	{NULL,							NULL}
 };

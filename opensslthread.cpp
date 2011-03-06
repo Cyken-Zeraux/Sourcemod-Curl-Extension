@@ -1,8 +1,8 @@
-
 #include "opensslthread.h"
 
 
-OpensslThread::OpensslThread(void *_data, OpensslThread_Type _type):data(_data),type(_type)
+OpensslThread::OpensslThread(void *_data, OpensslThread_Type _type):
+type(_type),data(_data)
 {
 	assert((type > OpensslThread_Type_NOTHING && type < OpensslThread_Type_LAST));
 	assert((data != NULL));

@@ -4,8 +4,6 @@
 #include "extension.h"
 #include "opensslmanager.h"
 
-enum OpensslThread_Type;
-
 class OpensslThread : public IThread
 {
 	friend class OpensslManager;

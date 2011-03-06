@@ -59,6 +59,7 @@
 
 //#define SMEXT_CONF_METAMOD		
 
+
 /** Enable interfaces you want to use here by uncommenting lines */
 //#define SMEXT_ENABLE_FORWARDSYS
 #define SMEXT_ENABLE_HANDLESYS
