@@ -30,7 +30,7 @@ static void openssl_hash_FramAction(void *data)
 			pFunc->PushString("");
 		else
 			pFunc->PushString(handle->output);
-		pFunc->PushCell(0);
+		pFunc->PushCell(handle->UserData);
 		pFunc->Execute(NULL);
 	}
 	

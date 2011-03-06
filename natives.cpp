@@ -344,7 +344,7 @@ static cell_t sm_curl_set_send_buffer(IPluginContext *pContext, const cell_t *pa
 		cell_t *addr;
 		pContext->LocalToPhysAddr(params[2], &addr);
 		buffer = (char *)addr;
-		handle->send_buffer_length = params[3];		
+		handle->send_buffer_length = data_size;	
 	} else {		
 		pContext->LocalToString(params[2], &buffer);
 		handle->send_buffer_length = strlen(buffer);
@@ -493,7 +493,7 @@ static cell_t sm_curl_hash_file(IPluginContext *pContext, const cell_t *params)
 	int len = strlen(filepath);
 
 	Openssl_Hash_pack *hash_pack = new Openssl_Hash_pack();
-	hash_pack->UserData = params[3];
+	hash_pack->UserData = params[4];
 	hash_pack->path = new char[len+1];
 	strncpy(hash_pack->path, filepath, len);
 	hash_pack->path[len] = '\0';
