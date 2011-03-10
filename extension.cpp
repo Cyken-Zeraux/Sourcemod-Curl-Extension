@@ -110,10 +110,48 @@ void cURL_SM::OnHandleDestroy(HandleType_t type, void *object)
 	if(type == g_cURLHandle)
 	{
 		g_cURLManager.RemovecURLHandle((cURLHandle *)object);
+	} else if(type == g_cURLFile || type == g_WebForm || type == g_cURLSlist) {
+		cURL_OpenFile *pointer = (cURL_OpenFile *)object;
+		if(pointer->TryDelete())
+		{
+			g_cURLManager.RemoveCloseHelperHandle(pointer);
+			pointer->Delete();
+		}
 	}
 }
 
 bool cURL_SM::IsShutdown()
 {
 	return shutdown;
+}
+
+
+bool ICloseHelper::TryDelete()
+{
+	if(_handle == NULL || !_handle->running)
+	{
+		return true;
+	} else {
+		_marked_delete = true;
+		return false;
+	}
+}
+
+void cURL_OpenFile::Delete()
+{
+	fclose(pFile);
+	delete this;
+}
+
+void WebForm::Delete()
+{
+	curl_formfree(first);
+	slist_record.clear();
+	delete this;
+}
+
+void cURL_slist_pack::Delete()
+{
+	curl_slist_free_all(chunk); 
+	delete this;
 }

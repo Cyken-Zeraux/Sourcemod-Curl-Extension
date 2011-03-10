@@ -23,16 +23,22 @@ public:
 	void LoadcURLOption(cURLHandle *handle);
 
 private:
-	void FreeOptionPointer(cURLOpt_pointer *pInfo);
-		
+	void RemoveLinkedICloseHelper(cURLHandle *handle);
+
 public:
 	CURLFORMcode cURLFormAdd(IPluginContext *pContext, const cell_t *params, WebForm *handle);
+
+public:
+	void AddCloseHelperHandle(ICloseHelper *helper);
+	void RemoveCloseHelperHandle(ICloseHelper *helper);
 
 private:
 	bool waiting;
 	IMutex *curlhandle_list_mutex;
+	IMutex *closehelper_list_mutex;
 	IEventSignal *shutdown_event;
 	SourceHook::List<cURLThread *> g_cURLThread_List;
+	SourceHook::List<ICloseHelper *> g_CloseHelper_List;
 };
 
 extern cURLManager g_cURLManager;

@@ -19,6 +19,7 @@ void cURLManager::SDK_OnLoad()
 {
 	curlhandle_list_mutex = threader->MakeMutex();
 	shutdown_event = threader->MakeEventSignal();
+	closehelper_list_mutex = threader->MakeMutex();
 
 	waiting = false;
 }
@@ -58,6 +59,7 @@ void cURLManager::SDK_OnUnload()
 	curlhandle_list_mutex = NULL;
 	g_cURLThread_List.clear();
 
+	g_CloseHelper_List.clear();
 }
 
 void cURLManager::CreatecURLThread(cURLThread *thread)
@@ -96,41 +98,44 @@ void cURLManager::RemovecURLThread(cURLThread *thread)
 	curlhandle_list_mutex->Unlock();
 }
 
-void cURLManager::FreeOptionPointer(cURLOpt_pointer *pInfo)
+void cURLManager::AddCloseHelperHandle(ICloseHelper *helper)
 {
-	switch(pInfo->opt)
+	closehelper_list_mutex->Lock();
+	if(g_CloseHelper_List.find(helper) == g_CloseHelper_List.end())
 	{
-		case CURLOPT_WRITEDATA:
-		case CURLOPT_HEADERDATA:
-		case CURLOPT_READDATA:
-		case CURLOPT_STDERR:
-		case CURLOPT_INTERLEAVEDATA:
+		g_CloseHelper_List.push_back(helper);
+	}
+	closehelper_list_mutex->Unlock();
+}
+
+void cURLManager::RemoveCloseHelperHandle(ICloseHelper *helper)
+{
+	closehelper_list_mutex->Lock();
+	g_CloseHelper_List.remove(helper);
+	closehelper_list_mutex->Unlock();
+}
+
+void cURLManager::RemoveLinkedICloseHelper(cURLHandle *handle)
+{
+	closehelper_list_mutex->Lock();
+
+	SourceHook::List<ICloseHelper *>::iterator iter;
+	ICloseHelper *pInfo;
+	for (iter=g_CloseHelper_List.begin(); iter!=g_CloseHelper_List.end(); iter++)
+	{
+		pInfo = (*iter);
+		if(pInfo->_handle == handle)
 		{
-			fclose((FILE *)pInfo->handle_obj);
-			break;
-		}
-		case CURLOPT_HTTPPOST:
-		{
-			WebForm *httpost = (WebForm *)pInfo->handle_obj;
-			curl_formfree(httpost->first);
-			delete httpost;
-			break;
-		}
-		case CURLOPT_HTTPHEADER:
-		case CURLOPT_QUOTE:
-		case CURLOPT_POSTQUOTE:
-		case CURLOPT_TELNETOPTIONS:
-		case CURLOPT_PREQUOTE:
-		case CURLOPT_HTTP200ALIASES:
-		case CURLOPT_MAIL_RCPT:
-		case CURLOPT_RESOLVE:
-		{
-			cURL_slist_pack *slist = (cURL_slist_pack *)pInfo->handle_obj;
-			curl_slist_free_all(slist->chunk); 
-			delete slist;
-			break;
+			pInfo->_handle = NULL;
+			if(pInfo->_marked_delete)
+			{
+				pInfo->Delete();
+				iter = g_CloseHelper_List.erase(iter);
+			}
 		}
 	}
+
+	closehelper_list_mutex->Unlock();
 }
 
 void cURLManager::RemovecURLHandle(cURLHandle *handle)
@@ -169,7 +174,6 @@ void cURLManager::RemovecURLHandle(cURLHandle *handle)
 	for(iter3=handle->opt_pointer_list.begin(); iter3!=handle->opt_pointer_list.end(); iter3++)
 	{
 		pInfo3 = (*iter3);
-		FreeOptionPointer(pInfo3);
 		delete pInfo3;
 	}
 	handle->opt_pointer_list.clear();
@@ -188,6 +192,8 @@ void cURLManager::RemovecURLHandle(cURLHandle *handle)
 		delete handle->send_buffer;
 		handle->send_buffer = NULL;
 	}
+
+	RemoveLinkedICloseHelper(handle);
 
 	delete handle;
 }
@@ -420,7 +426,7 @@ bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *hand
 
 	void *pointer = NULL;
 	int err = SP_ERROR_NONE;
-	void *handle_obj = NULL;
+	ICloseHelper *helper = NULL;
 
 	switch(opt)
 	{
@@ -430,10 +436,14 @@ bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *hand
 		case CURLOPT_STDERR:
 		case CURLOPT_INTERLEAVEDATA:
 		{
-			FILE *pFile = NULL;
-			err = handlesys->ReadHandle(hndl, g_cURLFile, sec, (void **)&pFile);
-			pointer = pFile;
-			handle_obj = pFile;
+			cURL_OpenFile *openfile = NULL;
+			err = handlesys->ReadHandle(hndl, g_cURLFile, sec, (void **)&openfile);
+			if(openfile != NULL)
+			{
+				pointer = openfile->pFile;
+				openfile->_handle = handle;
+				helper = openfile;
+			}
 			break;
 		}
 		case CURLOPT_HTTPPOST:
@@ -442,7 +452,17 @@ bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *hand
 			err = handlesys->ReadHandle(hndl, g_WebForm, sec, (void **)&webform);
 			if(webform != NULL) {
 				pointer = webform->first;
-				handle_obj = webform;
+				webform->_handle = handle;
+				helper = webform;
+
+				SourceHook::List<cURL_slist_pack *>::iterator iter;
+				cURL_slist_pack *pInfo;
+				for(iter=webform->slist_record.begin(); iter!=webform->slist_record.end(); iter++)
+				{
+					pInfo = (*iter);
+					pInfo->_handle = handle;
+					AddCloseHelperHandle(pInfo);
+				}
 			}
 			break;
 		}
@@ -455,11 +475,12 @@ bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *hand
 		case CURLOPT_MAIL_RCPT:
 		case CURLOPT_RESOLVE:
 		{
-			cURL_slist_pack *data = NULL;
-			err = handlesys->ReadHandle(hndl, g_cURLSlist, sec, (void **)&data);
-			if(data != NULL) {
-				pointer = data->chunk;
-				handle_obj = data;
+			cURL_slist_pack *slist = NULL;
+			err = handlesys->ReadHandle(hndl, g_cURLSlist, sec, (void **)&slist);
+			if(slist != NULL) {
+				pointer = slist->chunk;
+				slist->_handle = handle;
+				helper = slist;
 			}
 			break;
 		}
@@ -479,9 +500,10 @@ bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *hand
 	cURLOpt_pointer *pointeropt = new cURLOpt_pointer();
 	pointeropt->opt = opt;
 	pointeropt->value = pointer;
-	pointeropt->handle_obj = handle_obj;
 
 	handle->opt_pointer_list.push_back(pointeropt);
+
+	AddCloseHelperHandle(helper);
 	return true;
 }
 
@@ -557,6 +579,9 @@ CURLFORMcode cURLManager::cURLFormAdd(IPluginContext *pContext, const cell_t *pa
 	int value;
 	for(unsigned int i=startparam;i<=numparams;i++)
 	{
+		if(count > 10)
+			break;
+
 		if((err=pContext->LocalToPhysAddr(params[i], &addr)) != SP_ERROR_NONE)
 		{
 			pContext->ThrowNativeErrorEx(err, NULL);
@@ -617,6 +642,7 @@ CURLFORMcode cURLManager::cURLFormAdd(IPluginContext *pContext, const cell_t *pa
 				}
 				form_opts[count] = form_code;
 				form_data[count] = (char *)slist->chunk;
+				handle->slist_record.push_back(slist);
 				count++;
 				i++;
 				break;
@@ -626,6 +652,7 @@ CURLFORMcode cURLManager::cURLFormAdd(IPluginContext *pContext, const cell_t *pa
 				break;
 		}
 	}
+
 	CURLFORMcode ret = curl_formadd(&handle->first, &handle->last,
 		form_opts[0],
 		form_data[0],
@@ -648,7 +675,7 @@ CURLFORMcode cURLManager::cURLFormAdd(IPluginContext *pContext, const cell_t *pa
 		form_opts[9],
 		form_data[9],
 		form_opts[10]
-		);
+	);
 	return ret;
 }
 

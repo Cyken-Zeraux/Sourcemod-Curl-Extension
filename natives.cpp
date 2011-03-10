@@ -433,7 +433,10 @@ static cell_t sm_curl_OpenFile(IPluginContext *pContext, const cell_t *params)
 	if(!pFile)
 		return 0;	
 
-	return handlesys->CreateHandle(g_cURLFile, pFile, pContext->GetIdentity(), myself_Identity, NULL);
+	cURL_OpenFile *openfile = new cURL_OpenFile();
+	openfile->pFile = pFile;
+
+	return handlesys->CreateHandle(g_cURLFile, openfile, pContext->GetIdentity(), myself_Identity, NULL);
 }
 
 static cell_t sm_curl_httppost(IPluginContext *pContext, const cell_t *params)

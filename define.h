@@ -9,6 +9,8 @@
 #endif
 
 class cURLThread;
+struct cURLHandle;
+
 
 enum SendRecv_Act {
 	SendRecv_Act_NOTHING = 0,
@@ -58,7 +60,6 @@ struct cURLOpt_int64 {
 struct cURLOpt_pointer {
 	CURLoption opt;
 	void *value;
-	void *handle_obj;
 };
 
 struct cURLHandle {
@@ -88,22 +89,42 @@ struct cURLHandle {
 	unsigned int send_buffer_length;
 };
 
-struct cURL_slist_pack {
+class ICloseHelper {
+public:
+	ICloseHelper():_handle(NULL),_marked_delete(false)
+	{
+	}
+	cURLHandle *_handle;
+	bool _marked_delete;
+	bool TryDelete();
+	virtual void Delete() =0;
+};
+
+class cURL_slist_pack : public ICloseHelper {
+public:
 	cURL_slist_pack():chunk(NULL)
 	{
 	}
 	curl_slist *chunk;
+	void Delete();
 };
 
-struct WebForm {
+class WebForm : public ICloseHelper {
+public:
 	WebForm():first(NULL), last(NULL)
 	{
 	}
 	curl_httppost *first;
 	curl_httppost *last;
+	SourceHook::List<cURL_slist_pack *> slist_record;
+	void Delete();
 };
 
-
+class cURL_OpenFile : public ICloseHelper {
+public:
+	FILE *pFile;
+	void Delete();
+};
 
 
 enum OpensslThread_Type {
