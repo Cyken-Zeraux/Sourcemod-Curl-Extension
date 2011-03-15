@@ -17,7 +17,7 @@ public:
 	cURLThread_Type GetRunType();
 	void EventSignal();
 	bool IsWaiting();
-	char *GetBuffer();
+	char *GetReceiveBuffer();
 	void SetRecvBufferSize(unsigned int size);
 	void SetSenRecvAction(SendRecv_Act act);
 	

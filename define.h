@@ -64,7 +64,7 @@ struct cURLOpt_pointer {
 
 struct cURLHandle {
 	cURLHandle():curl(NULL),running(false),lasterror(CURLE_OK),opt_loaded(false),
-		thread(NULL),sockextr(INVALID_SOCKET),send_timeout(60000),recv_timeout(60000),send_buffer(NULL)
+		thread(NULL),sockextr(INVALID_SOCKET),send_timeout(60000),recv_timeout(60000)
 	{
 	}
 	CURL *curl;
@@ -85,8 +85,8 @@ struct cURLHandle {
 	long sockextr;
 	long send_timeout;
 	long recv_timeout;
-	unsigned char *send_buffer;
-	unsigned int send_buffer_length;
+
+	std::string send_buffer;
 };
 
 class ICloseHelper {

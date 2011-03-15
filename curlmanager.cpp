@@ -187,11 +187,7 @@ void cURLManager::RemovecURLHandle(cURLHandle *handle)
 	}
 	handle->opt_int64_list.clear();
 
-	if(handle->send_buffer != NULL)
-	{
-		delete handle->send_buffer;
-		handle->send_buffer = NULL;
-	}
+	handle->send_buffer.clear();
 
 	RemoveLinkedICloseHelper(handle);
 
@@ -560,14 +556,16 @@ void cURLManager::LoadcURLOption(cURLHandle *handle)
 
 CURLFORMcode cURLManager::cURLFormAdd(IPluginContext *pContext, const cell_t *params, WebForm *handle)
 {
+	assert((handle != NULL));
 	if(handle == NULL)
 		return CURL_FORMADD_INCOMPLETE;
 
 	unsigned int numparams = (unsigned)params[0];
 	unsigned int startparam = 2;	
-	if(numparams <= 1)
+	if(numparams <= 1 || numparams > 22)
 		return CURL_FORMADD_INCOMPLETE;
 
+	// there are only 10 available/supported CURLFORM_*
 	CURLformoption form_opts[11] = {CURLFORM_NOTHING};
 
 	char *form_data[10];
@@ -579,9 +577,6 @@ CURLFORMcode cURLManager::cURLFormAdd(IPluginContext *pContext, const cell_t *pa
 	int value;
 	for(unsigned int i=startparam;i<=numparams;i++)
 	{
-		if(count > 10)
-			break;
-
 		if((err=pContext->LocalToPhysAddr(params[i], &addr)) != SP_ERROR_NONE)
 		{
 			pContext->ThrowNativeErrorEx(err, NULL);
@@ -642,17 +637,18 @@ CURLFORMcode cURLManager::cURLFormAdd(IPluginContext *pContext, const cell_t *pa
 				}
 				form_opts[count] = form_code;
 				form_data[count] = (char *)slist->chunk;
-				handle->slist_record.push_back(slist);
+				handle->slist_record.push_back(slist); // when webform add into curlhandle, will add slist handle to close helper
 				count++;
 				i++;
 				break;
 			}
 			case CURLFORM_END:
 				form_opts[count] = CURLFORM_END;
-				break;
+				goto end;
 		}
 	}
 
+end:
 	CURLFORMcode ret = curl_formadd(&handle->first, &handle->last,
 		form_opts[0],
 		form_data[0],

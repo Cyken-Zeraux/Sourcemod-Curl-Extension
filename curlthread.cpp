@@ -1,7 +1,7 @@
 #include "curlthread.h"
 #include <string.h>
 
-static int wait_on_socket(curl_socket_t sockfd, int for_recv, long timeout_ms)
+static int wait_on_socket(curl_socket_t sockfd, bool for_recv, long timeout_ms)
 {
 	struct timeval tv;
 	fd_set infd, outfd, errfd;
@@ -48,7 +48,7 @@ cURLThread::~cURLThread()
 	}
 	if(recv_buffer != NULL)
 	{
-		delete recv_buffer;
+		delete [] recv_buffer;
 		recv_buffer = NULL;
 	}
 
@@ -76,7 +76,7 @@ bool cURLThread::IsWaiting()
 	return waiting;
 }
 
-char *cURLThread::GetBuffer()
+char *cURLThread::GetReceiveBuffer()
 {
 	return recv_buffer;
 }
@@ -147,7 +147,7 @@ static void curl_recv_FramAction(void *data)
 		cell_t result;
 		pFunc->PushCell(handle->hndl);
 		pFunc->PushCell(handle->lasterror);
-		pFunc->PushStringEx(thread->GetBuffer(), thread->last_iolen, SM_PARAM_STRING_COPY|SM_PARAM_STRING_BINARY, 0);
+		pFunc->PushStringEx(thread->GetReceiveBuffer(), thread->last_iolen, SM_PARAM_STRING_COPY|SM_PARAM_STRING_BINARY, 0);
 		pFunc->PushCell(thread->last_iolen);
 		pFunc->PushCell(handle->UserData[1]);
 		pFunc->Execute(&result);
@@ -180,21 +180,21 @@ select_action:
 
 /* Send Action */
 act_send:
-	if(!wait_on_socket(handle->sockextr, 0, handle->send_timeout))
+	if(!wait_on_socket(handle->sockextr, false, handle->send_timeout))
 	{
 		handle->lasterror = CURLE_OPERATION_TIMEDOUT;
 		goto sm_send_frame;
 	}
 
-	if(handle->send_buffer == NULL)
+	if(handle->send_buffer.length() == 0)
 	{
 		handle->lasterror = CURLE_SEND_ERROR;	
 		goto sm_send_frame;
 	}
 
-	handle->lasterror = curl_easy_send(handle->curl, handle->send_buffer, handle->send_buffer_length, &last_iolen);
-	delete handle->send_buffer;
-	handle->send_buffer = NULL;
+	handle->lasterror = curl_easy_send(handle->curl, handle->send_buffer.c_str(), handle->send_buffer.length(), &last_iolen);
+	handle->send_buffer.clear();
+
 
 	// put res to frame, let frame do action
 sm_send_frame:
@@ -210,7 +210,7 @@ sm_send_frame:
 
 /* Recv Action */
 act_recv:
-	if(!wait_on_socket(handle->sockextr, 1, handle->recv_timeout))
+	if(!wait_on_socket(handle->sockextr, true, handle->recv_timeout))
 	{
 		handle->lasterror = CURLE_OPERATION_TIMEDOUT;
 		goto sm_recv_frame;
@@ -218,12 +218,12 @@ act_recv:
 
 	if(recv_buffer != NULL)
 	{
-		delete recv_buffer;
+		delete [] recv_buffer;
 		recv_buffer = NULL;
 	}
 
-	recv_buffer = new char[recv_buffer_size];
-	memset(recv_buffer, 0, recv_buffer_size);
+	recv_buffer = new char[recv_buffer_size+1];
+	memset(recv_buffer, 0, recv_buffer_size+1);
 
 	handle->lasterror = curl_easy_recv(handle->curl, recv_buffer, recv_buffer_size, &last_iolen);
 	

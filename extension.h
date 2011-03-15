@@ -2,7 +2,7 @@
 #define _INCLUDE_SOURCEMOD_EXTENSION_PROPER_H_
 
 #include "smsdk_ext.h"
-#include <string.h>
+#include <string>
 #include "define.h"
 #include <assert.h>
 

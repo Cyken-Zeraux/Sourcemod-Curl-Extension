@@ -322,11 +322,8 @@ static cell_t sm_curl_send_recv_IsWaiting(IPluginContext *pContext, const cell_t
 {
 	SETUP_CURL_HANDLE();
 
-	if(handle->thread == NULL)
-		return 0;
-
 	cURLThread *thread = handle->thread;
-	if(thread->GetRunType() != cURLThread_Type_SEND_RECV || !handle->running) // is send & recv thread, running
+	if(thread == NULL || thread->GetRunType() != cURLThread_Type_SEND_RECV || !handle->running)
 		return 0;
 
 	return (thread->IsWaiting()) ? 1 : 0;
@@ -338,29 +335,14 @@ static cell_t sm_curl_set_send_buffer(IPluginContext *pContext, const cell_t *pa
 	SETUP_CURL_HANDLE();
 
 	char *buffer;
-	unsigned int data_size = (unsigned int)params[3];
-	if(data_size > 0)
+	pContext->LocalToString(params[2], &buffer);
+
+	if(params[3] == -1)
 	{
-		cell_t *addr;
-		pContext->LocalToPhysAddr(params[2], &addr);
-		buffer = (char *)addr;
-		handle->send_buffer_length = data_size;	
+		handle->send_buffer.assign(buffer);
 	} else {		
-		pContext->LocalToString(params[2], &buffer);
-		handle->send_buffer_length = strlen(buffer);
+		handle->send_buffer.assign(buffer,params[3]);
 	}
-
-	if(handle->send_buffer != NULL)
-	{
-		delete handle->send_buffer;
-		handle->send_buffer = NULL;
-	}
-
-	if(handle->send_buffer_length == 0)
-		return 0;
-
-	handle->send_buffer = new unsigned char[handle->send_buffer_length];
-	memcpy(handle->send_buffer, buffer, handle->send_buffer_length);
 
 	return 1;
 }
@@ -376,9 +358,19 @@ static cell_t sm_curl_set_receive_size(IPluginContext *pContext, const cell_t *p
 	return 1;
 }
 
-static cell_t sm_curl_close_opt_handles(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_set_timeout(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
+	
+	cURLThread *thread = handle->thread;
+	if(thread == NULL || thread->GetRunType() != cURLThread_Type_SEND_RECV)
+		return 0;
+
+	if(params[2] > 0)
+		handle->send_timeout = params[2];
+
+	if(params[3] > 0)
+		handle->recv_timeout = params[3];
 
 	return 1;
 }
@@ -566,8 +558,7 @@ sp_nativeinfo_t g_cURLNatives[] =
 	{"curl_send_recv_Signal",		sm_curl_send_recv_Signal},
 	{"curl_send_recv_IsWaiting",	sm_curl_send_recv_IsWaiting},
 	{"curl_set_receive_size",		sm_curl_set_receive_size},
-
-	{"curl_close_opt_handles",		sm_curl_close_opt_handles},
+	{"curl_set_timeout",			sm_curl_set_timeout},
 
 	{"curl_version",				sm_curl_version},
 	{"curl_features",				sm_curl_features},

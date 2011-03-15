@@ -111,7 +111,7 @@ void cURL_SM::OnHandleDestroy(HandleType_t type, void *object)
 	{
 		g_cURLManager.RemovecURLHandle((cURLHandle *)object);
 	} else if(type == g_cURLFile || type == g_WebForm || type == g_cURLSlist) {
-		cURL_OpenFile *pointer = (cURL_OpenFile *)object;
+		ICloseHelper *pointer = (ICloseHelper *)object;
 		if(pointer->TryDelete())
 		{
 			g_cURLManager.RemoveCloseHelperHandle(pointer);
