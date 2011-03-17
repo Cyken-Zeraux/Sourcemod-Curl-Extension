@@ -358,19 +358,22 @@ static cell_t sm_curl_set_receive_size(IPluginContext *pContext, const cell_t *p
 	return 1;
 }
 
-static cell_t sm_curl_set_timeout(IPluginContext *pContext, const cell_t *params)
+static cell_t sm_curl_set_send_timeout(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
-	
-	cURLThread *thread = handle->thread;
-	if(thread == NULL || thread->GetRunType() != cURLThread_Type_SEND_RECV)
-		return 0;
 
 	if(params[2] > 0)
 		handle->send_timeout = params[2];
 
-	if(params[3] > 0)
-		handle->recv_timeout = params[3];
+	return 1;
+}
+
+static cell_t sm_curl_set_recv_timeout(IPluginContext *pContext, const cell_t *params)
+{
+	SETUP_CURL_HANDLE();
+
+	if(params[2] > 0)
+		handle->recv_timeout = params[2];
 
 	return 1;
 }
@@ -558,7 +561,8 @@ sp_nativeinfo_t g_cURLNatives[] =
 	{"curl_send_recv_Signal",		sm_curl_send_recv_Signal},
 	{"curl_send_recv_IsWaiting",	sm_curl_send_recv_IsWaiting},
 	{"curl_set_receive_size",		sm_curl_set_receive_size},
-	{"curl_set_timeout",			sm_curl_set_timeout},
+	{"curl_set_send_timeout",		sm_curl_set_send_timeout},
+	{"curl_set_recv_timeout",		sm_curl_set_recv_timeout},
 
 	{"curl_version",				sm_curl_version},
 	{"curl_features",				sm_curl_features},

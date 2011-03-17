@@ -192,7 +192,7 @@ act_send:
 		goto sm_send_frame;
 	}
 
-	handle->lasterror = curl_easy_send(handle->curl, handle->send_buffer.c_str(), handle->send_buffer.length(), &last_iolen);
+	handle->lasterror = curl_easy_send(handle->curl, handle->send_buffer.data(), handle->send_buffer.length(), &last_iolen);
 	handle->send_buffer.clear();
 
 
