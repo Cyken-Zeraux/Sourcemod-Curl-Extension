@@ -155,3 +155,18 @@ void cURL_slist_pack::Delete()
 	curl_slist_free_all(chunk); 
 	delete this;
 }
+
+char *UTIL_ToLowerCase(const char *str)
+{
+	size_t len = strlen(str);
+	char *buffer = new char[len + 1];
+	for (size_t i = 0; i < len; i++)
+	{
+		if (str[i] >= 'A' && str[i] <= 'Z')
+			buffer[i] = tolower(str[i]);
+		else
+			buffer[i] = str[i];
+	}
+	buffer[len] = '\0';
+	return buffer;
+}

@@ -1,5 +1,10 @@
 #include "curlmanager.h"
 
+#ifdef PLATFORM_LINUX
+#include <netinet/in.h>
+#endif
+
+
 cURLManager g_cURLManager;
 
 static size_t curl_write_function(void *ptr, size_t bytes, size_t nmemb, void *stream)
@@ -14,6 +19,19 @@ static size_t curl_write_function(void *ptr, size_t bytes, size_t nmemb, void *s
 		return fwrite(ptr, bytes, nmemb, file); 
 	}
 	return bytes * nmemb;}
+
+static curl_socket_t curl_opensocket_function(void *clientp, curlsocktype purpose, struct curl_sockaddr *address)
+{
+	cURLHandle *handle = (cURLHandle *)clientp;
+	if(handle->is_udp)
+	{
+		address->socktype = SOCK_DGRAM;
+		address->protocol = IPPROTO_UDP;
+		address->family = AF_INET;
+	}
+
+	return socket(address->family, address->socktype, address->protocol);
+}
 
 void cURLManager::SDK_OnLoad()
 {
@@ -155,7 +173,7 @@ void cURLManager::RemovecURLHandle(cURLHandle *handle)
 	for (iter=handle->opt_string_list.begin(); iter!=handle->opt_string_list.end(); iter++)
 	{
 		pInfo = (*iter);
-		delete pInfo->value;
+		delete [] pInfo->value;
 		delete pInfo;
 	}
 	handle->opt_string_list.clear();
@@ -199,10 +217,28 @@ bool cURLManager::AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *
 	if(!handle || handle->running || !value)
 		return false;
 
+	std::string value_str;
+
 	bool supported = false;
 	switch(opt)
 	{
 		case CURLOPT_URL:
+		{
+			char *lowercase_value = UTIL_ToLowerCase(value);
+			std::string value_str_lower(lowercase_value);
+			delete [] lowercase_value;
+
+			if(!value_str_lower.compare(0,6, "udp://"))
+			{
+				handle->is_udp = true;
+				value_str.assign(&value[6]);
+			} else {
+				value_str = value;
+				handle->is_udp = false;
+			}
+			supported = true;
+			break;
+		}
 		case CURLOPT_PROXY:
 		case CURLOPT_PROXYUSERPWD:
 		case CURLOPT_RANGE:
@@ -236,6 +272,7 @@ bool cURLManager::AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *
 		case CURLOPT_RTSP_SESSION_ID:
 		case CURLOPT_RTSP_STREAM_URI:
 		case CURLOPT_RTSP_TRANSPORT:
+			value_str.assign(value);
 			supported = true;
 			break;
 		case CURLOPT_COOKIEFILE:
@@ -255,7 +292,7 @@ bool cURLManager::AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *
 		{
 			char realpath[PLATFORM_MAX_PATH];
 			g_pSM->BuildPath(Path_Game, realpath, sizeof(realpath), "%s", value);
-			value = realpath;
+			value_str.assign(realpath);
 			supported = true;
 			break;
 		}
@@ -267,8 +304,9 @@ bool cURLManager::AddcURLOptionString(cURLHandle *handle, CURLoption opt, char *
 	
 	cURLOpt_string *stringopt = new cURLOpt_string();
 	stringopt->opt = opt;
-	stringopt->value = new char[strlen(value)+1];
-	memcpy(stringopt->value,value, strlen(value)+1);
+	stringopt->value = new char[value_str.size()+1];
+	memset(stringopt->value, 0, value_str.size()+1);
+	memcpy(stringopt->value,value_str.c_str(), value_str.size());
 
 	handle->opt_string_list.push_back(stringopt);
 
@@ -513,9 +551,8 @@ void cURLManager::LoadcURLOption(cURLHandle *handle)
 	curl_easy_setopt(handle->curl, CURLOPT_ERRORBUFFER, handle->errorBuffer);
 	curl_easy_setopt(handle->curl, CURLOPT_WRITEFUNCTION, curl_write_function);
 
-	//curl_easy_setopt(handle->curl, CURLOPT_READFUNCTION, curl_read_function);
-
-	//curl_easy_setopt(handle->curl, CURLOPT_WRITEDATA, handle);
+	curl_easy_setopt(handle->curl, CURLOPT_OPENSOCKETFUNCTION, curl_opensocket_function);
+	curl_easy_setopt(handle->curl, CURLOPT_OPENSOCKETDATA, handle);
 
 	SourceHook::List<cURLOpt_string *>::iterator iter;
 	cURLOpt_string *pInfo;

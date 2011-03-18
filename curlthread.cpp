@@ -195,7 +195,6 @@ act_send:
 	handle->lasterror = curl_easy_send(handle->curl, handle->send_buffer.data(), handle->send_buffer.length(), &last_iolen);
 	handle->send_buffer.clear();
 
-
 	// put res to frame, let frame do action
 sm_send_frame:
 	smutils->AddFrameAction(curl_send_FramAction, this);

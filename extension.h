@@ -36,6 +36,7 @@ extern HandleType_t g_cURLSlist;
 
 extern IdentityToken_t *myself_Identity ;
 
+extern char *UTIL_ToLowerCase(const char *str);
 
 #endif
 

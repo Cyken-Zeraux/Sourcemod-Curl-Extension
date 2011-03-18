@@ -64,7 +64,7 @@ struct cURLOpt_pointer {
 
 struct cURLHandle {
 	cURLHandle():curl(NULL),running(false),lasterror(CURLE_OK),opt_loaded(false),
-		thread(NULL),sockextr(INVALID_SOCKET),send_timeout(60000),recv_timeout(60000)
+		thread(NULL),is_udp(false),sockextr(INVALID_SOCKET),send_timeout(60000),recv_timeout(60000)
 	{
 	}
 	CURL *curl;
@@ -80,6 +80,7 @@ struct cURLHandle {
 	Handle_t hndl;
 	int UserData[2];
 	cURLThread *thread;
+	bool is_udp;
 
 	/* use for send & recv */
 	long sockextr;
