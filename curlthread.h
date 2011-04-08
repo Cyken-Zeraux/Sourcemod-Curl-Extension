@@ -16,6 +16,7 @@ public:
 	cURLHandle *GetHandle();
 	cURLThread_Type GetRunType();
 	void EventSignal();
+	void EventWait();
 	bool IsWaiting();
 	char *GetReceiveBuffer();
 	void SetRecvBufferSize(unsigned int size);

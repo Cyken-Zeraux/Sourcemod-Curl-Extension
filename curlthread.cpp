@@ -71,6 +71,14 @@ void cURLThread::EventSignal()
 	event->Signal();
 }
 
+void cURLThread::EventWait()
+{
+	assert((event != NULL));
+	waiting = true;
+	event->Wait();
+	waiting = false;
+}
+
 bool cURLThread::IsWaiting()
 {
 	return waiting;
@@ -116,7 +124,7 @@ static void curl_send_FramAction(void *data)
 	cURLThread *thread = (cURLThread*)data;
 	cURLHandle *handle = thread->GetHandle();
 	
-	IPluginFunction *pFunc = handle->callback_Function[cURLThread_Func_SEND];
+	IPluginFunction *pFunc = handle->callback_Function[cURL_CallBack_SEND];
 	assert((pFunc != NULL));
 	if(pFunc != NULL)
 	{
@@ -124,7 +132,7 @@ static void curl_send_FramAction(void *data)
 		pFunc->PushCell(handle->hndl);
 		pFunc->PushCell(handle->lasterror);
 		pFunc->PushCell(thread->last_iolen);
-		pFunc->PushCell(handle->UserData[1]);
+		pFunc->PushCell(handle->UserData[UserData_Type_Send_Recv]);
 		pFunc->Execute(&result);
 		thread->SetSenRecvAction((SendRecv_Act)result);
 	}
@@ -140,7 +148,7 @@ static void curl_recv_FramAction(void *data)
 	cURLThread *thread = (cURLThread*)data;
 	cURLHandle *handle = thread->GetHandle();
 	
-	IPluginFunction *pFunc = handle->callback_Function[cURLThread_Func_RECV];
+	IPluginFunction *pFunc = handle->callback_Function[cURL_CallBack_RECV];
 	assert((pFunc != NULL));
 	if(pFunc != NULL)
 	{
@@ -149,7 +157,7 @@ static void curl_recv_FramAction(void *data)
 		pFunc->PushCell(handle->lasterror);
 		pFunc->PushStringEx(thread->GetReceiveBuffer(), thread->last_iolen, SM_PARAM_STRING_COPY|SM_PARAM_STRING_BINARY, 0);
 		pFunc->PushCell(thread->last_iolen);
-		pFunc->PushCell(handle->UserData[1]);
+		pFunc->PushCell(handle->UserData[UserData_Type_Send_Recv]);
 		pFunc->Execute(&result);
 		thread->SetSenRecvAction((SendRecv_Act)result);
 	}
@@ -198,9 +206,9 @@ act_send:
 	// put res to frame, let frame do action
 sm_send_frame:
 	smutils->AddFrameAction(curl_send_FramAction, this);
-	waiting = true;
-	event->Wait();
-	waiting = false;
+
+	EventWait();
+
 	if(g_cURL_SM.IsShutdown())
 		goto act_end;
 
@@ -235,9 +243,9 @@ sm_recv_frame:
 act_wait:
 	if(g_cURL_SM.IsShutdown())
 		goto act_end;
-	waiting = true;
-	event->Wait();
-	waiting = false;
+	
+	EventWait();
+
 	if(g_cURL_SM.IsShutdown())
 		goto act_end;
 	goto select_action; // select action again
@@ -269,13 +277,13 @@ static void cUrl_Thread_Finish(void *data)
 	cURLThread *thread = (cURLThread*)data;
 	cURLHandle *handle = thread->GetHandle();
 		
-	IPluginFunction *pFunc = handle->callback_Function[cURLThread_Func_COMPLETE];
+	IPluginFunction *pFunc = handle->callback_Function[cURL_CallBack_COMPLETE];
 	assert((pFunc != NULL));
 	if(pFunc != NULL)
 	{
 		pFunc->PushCell(handle->hndl);
 		pFunc->PushCell(handle->lasterror);
-		pFunc->PushCell(handle->UserData[0]);
+		pFunc->PushCell(handle->UserData[UserData_Type_Complete]);
 		pFunc->Execute(NULL);
 	}
 
@@ -288,9 +296,8 @@ void cURLThread::OnTerminate(IThreadHandle *pHandle, bool cancel)
 	if(!g_cURL_SM.IsShutdown())
 	{
 		smutils->AddFrameAction(cUrl_Thread_Finish, this);
-		waiting = true;
-		event->Wait();
-		waiting = false;
+		
+		EventWait();
 	}
 	delete this;
 }

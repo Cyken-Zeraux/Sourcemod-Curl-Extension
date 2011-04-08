@@ -20,6 +20,7 @@ public:
 	bool AddcURLOptionInt(cURLHandle *handle, CURLoption opt, int value);
 	bool AddcURLOptionInt64(cURLHandle *handle, CURLoption opt, long long value);
 	bool AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *handle, HandleSecurity *sec, CURLoption opt, Handle_t hndl);
+	bool AddcURLOptionFunction(IPluginContext *pContext, cURLHandle *handle, CURLoption opt, IPluginFunction *pFunction, int value);
 	void LoadcURLOption(cURLHandle *handle);
 
 private:

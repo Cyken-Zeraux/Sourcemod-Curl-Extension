@@ -32,14 +32,17 @@ enum cURLThread_Type {
 	cURLThread_Type_LAST,
 };
 
-enum cURLThread_Func {
-	cURLThread_Func_NOTHING = 0,
+enum cURL_CallBack {
+	cURL_CallBack_NOTHING = 0,
 
-	cURLThread_Func_COMPLETE,
-	cURLThread_Func_SEND,
-	cURLThread_Func_RECV,
+	cURL_CallBack_COMPLETE,
+	cURL_CallBack_SEND,
+	cURL_CallBack_RECV,
 
-	cURLThread_Func_LAST,
+	cURL_CallBack_WRITE_FUNCTION,
+	cURL_CallBack_READ_FUNCTION,
+
+	cURL_CallBack_LAST,
 };
 
 struct cURLOpt_string {
@@ -62,6 +65,14 @@ struct cURLOpt_pointer {
 	void *value;
 };
 
+enum UserData_Type
+{
+	UserData_Type_Complete = 0,
+	UserData_Type_Send_Recv,
+	UserData_Type_Write_Func,
+	UserData_Type_Read_Func,
+};
+
 struct cURLHandle {
 	cURLHandle():curl(NULL),running(false),lasterror(CURLE_OK),opt_loaded(false),
 		thread(NULL),is_udp(false),sockextr(INVALID_SOCKET),send_timeout(60000),recv_timeout(60000)
@@ -76,9 +87,9 @@ struct cURLHandle {
 	bool running;
 	CURLcode lasterror;
 	bool opt_loaded;
-	IPluginFunction *callback_Function[cURLThread_Func_LAST];
+	IPluginFunction *callback_Function[cURL_CallBack_LAST];
 	Handle_t hndl;
-	int UserData[2];
+	int UserData[4];
 	cURLThread *thread;
 	bool is_udp;
 

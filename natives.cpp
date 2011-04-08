@@ -122,6 +122,19 @@ static cell_t sm_curl_easy_setopt_handle(IPluginContext *pContext, const cell_t 
 	return g_cURLManager.AddcURLOptionHandle(pContext, handle, &sec, (CURLoption)params[2], params[3]);
 }
 
+static cell_t sm_curl_easy_setopt_function(IPluginContext *pContext, const cell_t *params)
+{
+	SETUP_CURL_HANDLE();
+
+	IPluginFunction *pFunction = pContext->GetFunctionById(params[3]);
+	if(!pFunction)
+	{
+		return pContext->ThrowNativeError("Invalid function %x", params[3]);
+	}
+
+	return g_cURLManager.AddcURLOptionFunction(pContext, handle, (CURLoption)params[2], pFunction, params[4]);
+}
+
 static cell_t sm_curl_easy_perform_thread(IPluginContext *pContext, const cell_t *params)
 {
 	SETUP_CURL_HANDLE();
@@ -132,8 +145,8 @@ static cell_t sm_curl_easy_perform_thread(IPluginContext *pContext, const cell_t
 		return pContext->ThrowNativeError("Invalid function %x", params[2]);
 	}
 
-	handle->UserData[0] = params[3];	
-	handle->callback_Function[cURLThread_Func_COMPLETE] = pFunction;
+	handle->UserData[UserData_Type_Complete] = params[3];	
+	handle->callback_Function[cURL_CallBack_COMPLETE] = pFunction;
 	cURLThread *thread = new cURLThread(handle, cURLThread_Type_PERFORM);
 	g_cURLManager.CreatecURLThread(thread);
 
@@ -285,10 +298,10 @@ static cell_t sm_curl_easy_send_recv(IPluginContext *pContext, const cell_t *par
 
 	handle->send_timeout = params[6];
 	handle->recv_timeout = params[7];
-	handle->UserData[1] = params[9];
-	handle->callback_Function[cURLThread_Func_SEND] = pFunction_send;
-	handle->callback_Function[cURLThread_Func_RECV] = pFunction_recv;
-	handle->callback_Function[cURLThread_Func_COMPLETE] = pFunction_complete;
+	handle->UserData[UserData_Type_Send_Recv] = params[9];
+	handle->callback_Function[cURL_CallBack_SEND] = pFunction_send;
+	handle->callback_Function[cURL_CallBack_RECV] = pFunction_recv;
+	handle->callback_Function[cURL_CallBack_COMPLETE] = pFunction_complete;
 	cURLThread *thread = new cURLThread(handle, cURLThread_Type_SEND_RECV);
 	thread->SetRecvBufferSize(params[8]);
 	thread->SetSenRecvAction((SendRecv_Act)params[5]);
@@ -546,6 +559,7 @@ sp_nativeinfo_t g_cURLNatives[] =
 	{"curl_easy_setopt_int_array",	sm_curl_easy_setopt_int_array},
 	{"curl_easy_setopt_int64",		sm_curl_easy_setopt_int64},
 	{"curl_easy_setopt_handle",		sm_curl_easy_setopt_handle},
+	{"curl_easy_setopt_function",	sm_curl_easy_setopt_function},
 	{"curl_easy_perform_thread",	sm_curl_easy_perform_thread},
 	{"curl_easy_perform",			sm_curl_easy_perform},
 	{"curl_easy_getinfo_string",	sm_curl_easy_getinfo_string},

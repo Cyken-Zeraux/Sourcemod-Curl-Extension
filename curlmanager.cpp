@@ -7,7 +7,21 @@
 
 cURLManager g_cURLManager;
 
-static size_t curl_write_function(void *ptr, size_t bytes, size_t nmemb, void *stream)
+
+struct data_t {
+	data_t(cURLHandle *_handle,	size_t _bytes, size_t _nmemb):
+	handle(_handle), buffer(NULL), bytes(_bytes), nmemb(_nmemb)
+	{
+	}
+	cURLHandle *handle;
+	char *buffer;
+	size_t bytes;
+	size_t nmemb;
+	size_t return_value;
+};
+
+/* Write Function */
+static size_t curl_write_function_default(void *ptr, size_t bytes, size_t nmemb, void *stream)
 {
 	FILE *file = (FILE *)stream;
 #ifdef WIN32
@@ -18,7 +32,128 @@ static size_t curl_write_function(void *ptr, size_t bytes, size_t nmemb, void *s
 	{
 		return fwrite(ptr, bytes, nmemb, file); 
 	}
-	return bytes * nmemb;}
+	return (bytes * nmemb);}
+
+static size_t Call_Write_Function(cURLHandle *handle, const char *buffer, size_t bytes, size_t nmemb)
+{
+	IPluginFunction *pFunc = handle->callback_Function[cURL_CallBack_WRITE_FUNCTION];
+	assert((pFunc != NULL));
+	cell_t result = bytes * nmemb;
+	if(pFunc != NULL)
+	{
+		pFunc->PushCell(handle->hndl);
+		pFunc->PushStringEx((char *)buffer, nmemb+1, SM_PARAM_STRING_COPY|SM_PARAM_STRING_BINARY, 0);
+		pFunc->PushCell(bytes);
+		pFunc->PushCell(nmemb);
+		pFunc->PushCell(handle->UserData[UserData_Type_Write_Func]);
+		pFunc->Execute(&result);
+	}
+	return result;
+}
+
+static void sm_write_function_FrameAction(void *data)
+{
+	if(data == NULL)
+		return;
+
+	data_t *wdata = (data_t*)data;
+	wdata->return_value = Call_Write_Function(wdata->handle, wdata->buffer, wdata->bytes, wdata->nmemb);
+	wdata->handle->thread->EventSignal();
+}
+
+static size_t curl_write_function_SM(void *ptr, size_t bytes, size_t nmemb, void *stream)
+{
+	cURLHandle *handle = (cURLHandle *)stream;
+
+	size_t ret;
+	if(handle->thread == NULL)
+	{
+		char *buffer = new char[nmemb+1];
+		memcpy(buffer,ptr, nmemb);
+		buffer[nmemb] = '\0';
+		ret = Call_Write_Function(handle, buffer, bytes, nmemb);
+		delete [] buffer;
+	} else {
+		if(g_cURL_SM.IsShutdown())
+			return (bytes * nmemb);
+
+		data_t *data = new data_t(handle, bytes, nmemb);
+		data->buffer = new char[nmemb+1];
+		memcpy(data->buffer,ptr, nmemb);
+		data->buffer[nmemb] = '\0';
+
+		smutils->AddFrameAction(sm_write_function_FrameAction, data);
+		handle->thread->EventWait();
+
+		ret = data->return_value;
+		delete [] data->buffer;
+		delete data;
+
+		if(g_cURL_SM.IsShutdown())
+			return (bytes * nmemb);
+	}
+
+	return ret;}
+
+/* Read Function */
+static size_t Call_Read_Function(cURLHandle *handle, size_t bytes, size_t nmemb)
+{
+	IPluginFunction *pFunc = handle->callback_Function[cURL_CallBack_READ_FUNCTION];
+	assert((pFunc != NULL));
+	cell_t result = bytes * nmemb;
+	if(pFunc != NULL)
+	{
+		pFunc->PushCell(handle->hndl);
+		pFunc->PushCell(bytes);
+		pFunc->PushCell(nmemb);
+		pFunc->PushCell(handle->UserData[UserData_Type_Read_Func]);
+		pFunc->Execute(&result);
+	}
+	return result;
+}
+
+static void sm_read_function_FrameAction(void *data)
+{
+	if(data == NULL)
+		return;
+
+	data_t *rdata = (data_t*)data;
+	rdata->return_value = Call_Read_Function(rdata->handle, rdata->bytes, rdata->nmemb);
+	rdata->handle->thread->EventSignal();
+}
+
+
+static size_t curl_read_function_SM(char *ptr, size_t bytes, size_t nmemb, void *stream)
+{
+	cURLHandle *handle = (cURLHandle *)stream;
+
+	size_t ret = 0;
+	if(handle->thread == NULL)
+	{
+		ret = Call_Read_Function(handle, bytes, nmemb);
+	} else {
+		if(g_cURL_SM.IsShutdown())
+			return 0;
+
+		data_t *data = new data_t(handle, bytes, nmemb);
+
+		smutils->AddFrameAction(sm_read_function_FrameAction, data);
+		handle->thread->EventWait();
+
+		ret = data->return_value;
+		delete data;
+
+		if(g_cURL_SM.IsShutdown())
+			return 0;
+	}
+
+	if(ret > 0)
+	{
+		memcpy(ptr,handle->send_buffer.data(), handle->send_buffer.size());
+	}
+
+	return ret;
+}
 
 static curl_socket_t curl_opensocket_function(void *clientp, curlsocktype purpose, struct curl_sockaddr *address)
 {
@@ -452,6 +587,31 @@ bool cURLManager::AddcURLOptionInt64(cURLHandle *handle, CURLoption opt, long lo
 	return true;
 }
 
+bool cURLManager::AddcURLOptionFunction(IPluginContext *pContext, cURLHandle *handle, CURLoption opt, IPluginFunction *pFunction, int value)
+{
+	if(!handle || handle->running)
+		return false;
+
+	cURL_CallBack index = cURL_CallBack_NOTHING;
+	switch(opt)
+	{
+		case CURLOPT_WRITEFUNCTION:
+			index = cURL_CallBack_WRITE_FUNCTION;
+			handle->UserData[UserData_Type_Write_Func] = value;
+			break;
+		case CURLOPT_READFUNCTION:
+			index = cURL_CallBack_READ_FUNCTION;
+			handle->UserData[UserData_Type_Read_Func] = value;
+			break;
+	}
+
+	if(index == cURL_CallBack_NOTHING)
+		return false;
+
+	handle->callback_Function[index] = pFunction;
+	return true;
+}
+
 
 bool cURLManager::AddcURLOptionHandle(IPluginContext *pContext, cURLHandle *handle, HandleSecurity *sec, CURLoption opt, Handle_t hndl)
 {
@@ -549,11 +709,23 @@ void cURLManager::LoadcURLOption(cURLHandle *handle)
 	handle->opt_loaded = true;
 	
 	curl_easy_setopt(handle->curl, CURLOPT_ERRORBUFFER, handle->errorBuffer);
-	curl_easy_setopt(handle->curl, CURLOPT_WRITEFUNCTION, curl_write_function);
 
 	curl_easy_setopt(handle->curl, CURLOPT_OPENSOCKETFUNCTION, curl_opensocket_function);
 	curl_easy_setopt(handle->curl, CURLOPT_OPENSOCKETDATA, handle);
 
+	if(handle->callback_Function[cURL_CallBack_WRITE_FUNCTION] == NULL) {
+		curl_easy_setopt(handle->curl, CURLOPT_WRITEFUNCTION, curl_write_function_default);
+	} else {
+		curl_easy_setopt(handle->curl, CURLOPT_WRITEFUNCTION, curl_write_function_SM);
+		curl_easy_setopt(handle->curl, CURLOPT_WRITEDATA, handle);
+	}
+
+	if(handle->callback_Function[cURL_CallBack_READ_FUNCTION] != NULL) {
+		curl_easy_setopt(handle->curl, CURLOPT_READFUNCTION, curl_read_function_SM);
+		curl_easy_setopt(handle->curl, CURLOPT_READDATA, handle);
+	}
+
+	
 	SourceHook::List<cURLOpt_string *>::iterator iter;
 	cURLOpt_string *pInfo;
 	for(iter=handle->opt_string_list.begin(); iter!=handle->opt_string_list.end(); iter++)
@@ -577,6 +749,12 @@ void cURLManager::LoadcURLOption(cURLHandle *handle)
 	for(iter3=handle->opt_pointer_list.begin(); iter3!=handle->opt_pointer_list.end(); iter3++)
 	{
 		pInfo3 = (*iter3);
+		//Not allow use CURLOPT_WRITEDATA, CURLOPT_READDATA, if write/read function set
+		if((handle->callback_Function[cURL_CallBack_WRITE_FUNCTION] != NULL && pInfo3->opt == CURLOPT_WRITEDATA)
+			|| (handle->callback_Function[cURL_CallBack_READ_FUNCTION] != NULL && pInfo3->opt == CURLOPT_READDATA))
+		{
+			continue;
+		}
 		if((handle->lasterror = curl_easy_setopt(handle->curl, pInfo3->opt, pInfo3->value)) != CURLE_OK)
 			return;
 	}
