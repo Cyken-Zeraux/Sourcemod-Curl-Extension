@@ -32,7 +32,8 @@ static size_t curl_write_function_default(void *ptr, size_t bytes, size_t nmemb,
 	{
 		return fwrite(ptr, bytes, nmemb, file); 
 	}
-	return (bytes * nmemb);}
+	return (bytes * nmemb);
+}
 
 static size_t Call_Write_Function(cURLHandle *handle, const char *buffer, size_t bytes, size_t nmemb)
 {
@@ -93,7 +94,8 @@ static size_t curl_write_function_SM(void *ptr, size_t bytes, size_t nmemb, void
 			return (bytes * nmemb);
 	}
 
-	return ret;}
+	return ret;
+}
 
 /* Read Function */
 static size_t Call_Read_Function(cURLHandle *handle, size_t bytes, size_t nmemb)

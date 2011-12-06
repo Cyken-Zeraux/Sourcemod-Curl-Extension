@@ -19,6 +19,8 @@ enum SendRecv_Act {
 	SendRecv_Act_GOTO_RECV,
 	SendRecv_Act_GOTO_WAIT,
 	SendRecv_Act_GOTO_END,
+	SendRecv_Act_GOTO_SEND_NO_WAIT,
+	SendRecv_Act_GOTO_RECV_NO_WAIT,
 
 	SendRecv_Act_LAST,
 };

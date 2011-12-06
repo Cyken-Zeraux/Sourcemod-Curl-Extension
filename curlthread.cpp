@@ -182,6 +182,10 @@ select_action:
 		goto act_recv;
 	else if(send_recv_act == SendRecv_Act_GOTO_WAIT)
 		goto act_wait;
+	else if(send_recv_act == SendRecv_Act_GOTO_SEND_NO_WAIT)
+		goto act_send_no_wait;
+	else if(send_recv_act == SendRecv_Act_GOTO_RECV_NO_WAIT)
+		goto act_recv_no_wait;
 	else
 		goto act_end;
 
@@ -194,6 +198,7 @@ act_send:
 		goto sm_send_frame;
 	}
 
+act_send_no_wait:
 	if(handle->send_buffer.length() == 0)
 	{
 		handle->lasterror = CURLE_SEND_ERROR;	
@@ -223,6 +228,7 @@ act_recv:
 		goto sm_recv_frame;
 	}
 
+act_recv_no_wait:
 	if(recv_buffer != NULL)
 	{
 		delete [] recv_buffer;
