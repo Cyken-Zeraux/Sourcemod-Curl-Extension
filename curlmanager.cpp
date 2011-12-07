@@ -542,6 +542,8 @@ bool cURLManager::AddcURLOptionInt(cURLHandle *handle, CURLoption opt, int value
 		case CURLOPT_RTSP_CLIENT_CSEQ:
 		case CURLOPT_RTSP_SERVER_CSEQ:
 		case CURLOPT_WILDCARDMATCH:
+		case CURLOPT_TRANSFER_ENCODING:
+		case CURLOPT_GSSAPI_DELEGATION:
 			supported = true;
 			break;
 	}

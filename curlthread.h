@@ -37,6 +37,7 @@ private:
 	IEventSignal *event;
 	char *recv_buffer;
 	unsigned int recv_buffer_size;
+	unsigned int _current_recv_buffer_size;
 	SendRecv_Act send_recv_act;
 
 public:

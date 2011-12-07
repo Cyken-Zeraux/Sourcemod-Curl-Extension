@@ -29,7 +29,7 @@ static int wait_on_socket(curl_socket_t sockfd, bool for_recv, long timeout_ms)
 
 cURLThread::cURLThread(cURLHandle *_handle, cURLThread_Type _type):
 waiting(false),handle(_handle),type(_type),event(threader->MakeEventSignal()),
-recv_buffer(NULL),recv_buffer_size(0),last_iolen(0)
+recv_buffer(NULL),recv_buffer_size(1024),_current_recv_buffer_size(0),last_iolen(0)
 
 {
 	assert((type > cURLThread_Type_NOTHING && type < cURLThread_Type_LAST));
@@ -93,6 +93,8 @@ void cURLThread::SetRecvBufferSize(unsigned int size)
 {
 	if(size == 0)
 		size = 1024;
+	else if(size > (64*1024*1024)) // 64MB
+		size = (64*1024*1024);
 
 	recv_buffer_size = size;
 }
@@ -229,16 +231,19 @@ act_recv:
 	}
 
 act_recv_no_wait:
-	if(recv_buffer != NULL)
+	if(_current_recv_buffer_size != recv_buffer_size || recv_buffer == NULL)
 	{
-		delete [] recv_buffer;
-		recv_buffer = NULL;
+		if(recv_buffer != NULL)
+		{
+			delete [] recv_buffer;
+			recv_buffer = NULL;
+		}
+		_current_recv_buffer_size = recv_buffer_size;
+		recv_buffer = new char[_current_recv_buffer_size+1];
+		memset(recv_buffer, 0, _current_recv_buffer_size+1);
 	}
 
-	recv_buffer = new char[recv_buffer_size+1];
-	memset(recv_buffer, 0, recv_buffer_size+1);
-
-	handle->lasterror = curl_easy_recv(handle->curl, recv_buffer, recv_buffer_size, &last_iolen);
+	handle->lasterror = curl_easy_recv(handle->curl, recv_buffer, _current_recv_buffer_size, &last_iolen);
 	
 sm_recv_frame:
 	smutils->AddFrameAction(curl_recv_FramAction, this);
