@@ -40,7 +40,7 @@
 /* Basic information exposed publicly */
 #define SMEXT_CONF_NAME			"cURL Extension"
 #define SMEXT_CONF_DESCRIPTION	"cURL Extension"
-#define SMEXT_CONF_VERSION		"1.2.0.0"
+#define SMEXT_CONF_VERSION		"1.3.0.0"
 #define SMEXT_CONF_AUTHOR		"ben"
 #define SMEXT_CONF_URL			"http://www.ZombieX2.net/"
 #define SMEXT_CONF_LOGTAG		"cURL"

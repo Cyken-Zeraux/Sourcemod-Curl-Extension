@@ -5,6 +5,7 @@
 #include <string>
 #include "define.h"
 #include <assert.h>
+#include <cstring>
 
 class cURL_SM :
 	public SDKExtension,
