@@ -8,6 +8,7 @@ os:
 before_install:
 - sudo apt-get -qq update
 - sudo apt-get -y install build-essential
+- sudo apt-get -y install php-cli
 - sudo apt-get -y build-dep zlib
 - sudo apt-get -y build-dep openssl
 - sudo apt-get -y build-dep libssh2
