@@ -7,15 +7,15 @@ os:
 - linux
 before_install:
 - sudo apt-get -qq update
-- sudo apt-get install build-essential
-- sudo apt-get build-dep zlib
-- sudo apt-get build-dep libssl
-- sudo apt-get build-dep openssl
-- sudo apt-get build-dep libssh2
-- sudo apt-get build-dep curl
+- sudo apt-get -y install build-essential
+- sudo apt-get -y build-dep zlib
+- sudo apt-get -y build-dep libssl
+- sudo apt-get -y build-dep openssl
+- sudo apt-get -y build-dep libssh2
+- sudo apt-get -y build-dep curl
 - sudo mkdir /opt
 - cd /opt
-- sudo apt-get source zlib
-- sudo apt-get source openssl
-- sudo apt-get source libssh2
-- sudo apt-get source curl
+- sudo apt-get -y source zlib
+- sudo apt-get -y source openssl
+- sudo apt-get -y source libssh2
+- sudo apt-get -y source curl
