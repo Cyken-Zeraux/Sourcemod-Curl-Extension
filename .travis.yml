@@ -18,3 +18,5 @@ before_install:
 - sudo apt-get -y source openssl
 - sudo apt-get -y source libssh2
 - sudo apt-get -y source curl
+- ls
+before_script: php depsetup.php
