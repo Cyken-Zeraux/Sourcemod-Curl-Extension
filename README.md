@@ -1,4 +1,9 @@
 # Sourcemod-Curl-Extension
+[![Build Status](https://travis-ci.org/Cyken-Zeraux/Sourcemod-Curl-Extension.svg?branch=master)](https://travis-ci.org/Cyken-Zeraux/Sourcemod-Curl-Extension)
+
+[![Build Status](https://ci.appveyor.com/api/projects/status/github/Sourcemod-Curl-Extension/sourcemod-curl-extension?branch=master&svg=true)](https://ci.appveyor.com/project/cyken/sourcemod-curl-extension)
+
+
 #### cURL for Sourcemod
 PROJECT NOT YET READY FOR DEPLOYMENT, DO NOT USE.
 
