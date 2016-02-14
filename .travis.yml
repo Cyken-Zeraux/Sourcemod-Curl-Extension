@@ -1,0 +1,21 @@
+language: cpp
+sudo: required
+dist: trusty
+compiler:
+- gcc
+os:
+- linux
+before_install:
+- sudo apt-get -qq update
+- sudo apt-get install build-essential
+- sudo apt-get build-dep zlib
+- sudo apt-get build-dep libssl
+- sudo apt-get build-dep openssl
+- sudo apt-get build-dep libssh2
+- sudo apt-get build-dep curl
+- sudo mkdir /opt
+- cd /opt
+- sudo apt-get source zlib
+- sudo apt-get source openssl
+- sudo apt-get source libssh2
+- sudo apt-get source curl
