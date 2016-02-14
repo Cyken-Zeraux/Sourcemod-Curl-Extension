@@ -12,8 +12,8 @@ before_install:
 - sudo apt-get -y build-dep openssl
 - sudo apt-get -y build-dep libssh2
 - sudo apt-get -y build-dep curl
-- sudo mkdir /opt
-- cd /opt
+- sudo mkdir $HOME/sources
+- cd $HOME/sources
 - sudo apt-get -y source zlib
 - sudo apt-get -y source openssl
 - sudo apt-get -y source libssh2
