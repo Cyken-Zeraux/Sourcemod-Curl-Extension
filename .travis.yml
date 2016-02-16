@@ -29,7 +29,7 @@ install:
 - sudo make
 - sudo make install
 - cd $HOME/sources/openssl-*
-- ./config no-asm --prefix=$HOME/sources/libs/openssl --openssldir=$HOME/sources/libs/openssl
+- ./config no-asm -fPIC --prefix=$HOME/sources/libs/openssl --openssldir=$HOME/sources/libs/openssl
 - sudo make
 - sudo make install
 - cd $HOME/sources/libssh2-*
