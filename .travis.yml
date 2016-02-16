@@ -15,7 +15,7 @@ before_install:
 - mkdir $HOME/sources
 - mkdir $HOME/libs
 - cd $HOME/libs
-- "sudo mkdir {zlib,openssl,libssh2,curl}"
+- "mkdir {zlib,openssl,libssh2,curl}"
 - cd $HOME/sources
 - export LIBS+=-ldl
 - apt-get -y source zlib
@@ -25,18 +25,18 @@ before_install:
 
 install:
 - cd $HOME/sources/zlib-*
-- ./configure --prefix=$HOME/sources/libs/zlib
+- sudo ./configure --prefix=$HOME/libs/zlib
 - sudo make
 - sudo make install
 - cd $HOME/sources/openssl-*
-- ./config no-asm -fPIC --prefix=$HOME/sources/libs/openssl --openssldir=$HOME/sources/libs/openssl
+- sudo ./config no-asm --prefix=$HOME/libs/openssl --openssldir=$HOME/libs/openssl
 - sudo make
 - sudo make install
 - cd $HOME/sources/libssh2-*
-- ./configure --with-openssl --with-libssl-prefix=$HOME/sources/libs/openssl --with-libz --with-libz-prefix=$HOME/sources/libs/zlib --without-libgcrypt --enable-static --prefix=$HOME/sources/libs/libssh2
+- sudo ./configure --with-openssl --with-libssl-prefix=$HOME/libs/openssl --with-libz --with-libz-prefix=$HOME/libs/zlib --without-libgcrypt --enable-static --prefix=$HOME/libs/libssh2
 - sudo make
 - sudo make install
 - cd $HOME/sources/curl-*
-- ./configure --with-ssl=$HOME/sources/libs/openssl --with-zlib=$HOME/sources/libs/zlib --with-libssh2=$HOME/sources/libs/libssh2 --disable-rtsp --disable-ldaps --disable-ldap --disable-sspi --without-libidn --enable-static --prefix=$HOME/sources/libs/curl
+- sudo ./configure --with-ssl=$HOME/libs/openssl --with-zlib=$HOME/libs/zlib --with-libssh2=$HOME/libs/libssh2 --disable-rtsp --without-librtmp --disable-manual --disable-ldaps --disable-ldap --disable-sspi --without-libidn --enable-static --prefix=$HOME/libs/curl
 - sudo make
 - sudo make install
