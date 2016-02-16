@@ -29,7 +29,6 @@ install:
 - sudo make
 - sudo make install
 - cd $HOME/sources/openssl-*
-- make clean
 - ./config no-asm --prefix=$HOME/sources/libs/openssl --openssldir=$HOME/sources/libs/openssl
 - sudo make
 - sudo make install
