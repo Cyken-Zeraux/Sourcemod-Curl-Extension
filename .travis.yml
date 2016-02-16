@@ -33,7 +33,7 @@ install:
 - sudo make
 - sudo make install
 - cd $HOME/sources/libssh2-*
-- sudo ./configure --with-openssl --with-libssl-prefix=$HOME/libs/openssl --with-libz --with-libz-prefix=$HOME/libs/zlib --without-libgcrypt --enable-static --prefix=$HOME/libs/libssh2
+- sudo ./configure --with-openssl --with-libssl-prefix=/home/travis/libs/openssl --with-libz --with-libz-prefix=/home/travis/libs/zlib --without-libgcrypt --enable-static --prefix=/home/travis/libs/libssh2
 - sudo make
 - sudo make install
 - cd $HOME/sources/curl-*
