@@ -17,27 +17,27 @@ before_install:
 - cd $HOME/libs
 - "mkdir {zlib,openssl,libssh2,curl}"
 - cd $HOME/sources
-- export LIBS+=-ldl
 - apt-get -y source zlib
 - apt-get -y source openssl
 - apt-get -y source libssh2
 - apt-get -y source curl
 
 install:
+- export LIBS+=-ldl
 - cd $HOME/sources/zlib-*
-- sudo ./configure --prefix=$HOME/libs/zlib
-- sudo make
-- sudo make install
+- ./configure --prefix=$HOME/libs/zlib
+- make
+- make install
 - cd $HOME/sources/openssl-*
-- sudo ./config -fPIC no-asm --prefix=$HOME/libs/openssl --openssldir=$HOME/libs/openssl
-- sudo make
-- sudo make install
+- ./config -fPIC no-asm --prefix=$HOME/libs/openssl --openssldir=$HOME/libs/openssl
+- make
+- make install
 - cd $HOME/sources/libssh2-*
-- sudo ./configure --with-openssl --with-libssl-prefix=/home/travis/libs/openssl --with-libz --with-libz-prefix=/home/travis/libs/zlib --without-libgcrypt --enable-static --prefix=/home/travis/libs/libssh2
-- sudo make
-- sudo make install
+- ./configure --with-openssl --with-libssl-prefix=$HOME/libs/openssl --with-libz --with-libz-prefix=$HOME/libs/zlib --without-libgcrypt --enable-static --prefix=$HOME/libs/libssh2
+- make
+- make install
 - cd $HOME/sources/curl-*
-- sudo ./configure --with-ssl=$HOME/libs/openssl --with-zlib=$HOME/libs/zlib --with-libssh2=$HOME/libs/libssh2 --disable-rtsp --without-librtmp --disable-manual --disable-ldaps --disable-ldap --disable-sspi --without-libidn --enable-static --prefix=$HOME/libs/curl
-- sudo make
-- sudo make install
+- ./configure --with-ssl=$HOME/libs/openssl --with-zlib=$HOME/libs/zlib --with-libssh2=$HOME/libs/libssh2 --disable-rtsp --without-librtmp --disable-manual --disable-ldaps --disable-ldap --disable-sspi --without-libidn --enable-static --prefix=$HOME/libs/curl
+- make
+- make install
 - cd $HOME
