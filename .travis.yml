@@ -29,11 +29,11 @@ install:
 - sudo make
 - sudo make install
 - cd $HOME/sources/openssl-*
-- sudo ./config no-asm --prefix=$HOME/libs/openssl --openssldir=$HOME/libs/openssl
+- sudo ./config -fPIC no-asm --prefix=$HOME/libs/openssl --openssldir=$HOME/libs/openssl
 - sudo make
 - sudo make install
 - cd $HOME/sources/libssh2-*
-- sudo ./configure -fPIC --with-openssl --with-libssl-prefix=$HOME/libs/openssl --with-libz --with-libz-prefix=$HOME/libs/zlib --without-libgcrypt --enable-static --prefix=$HOME/libs/libssh2
+- sudo ./configure --with-openssl --with-libssl-prefix=$HOME/libs/openssl --with-libz --with-libz-prefix=$HOME/libs/zlib --without-libgcrypt --enable-static --prefix=$HOME/libs/libssh2
 - sudo make
 - sudo make install
 - cd $HOME/sources/curl-*
