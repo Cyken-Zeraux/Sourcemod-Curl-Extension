@@ -19,11 +19,25 @@ before_install:
 - cd $HOME/sources
 - export LIBS+=-ldl
 - apt-get -y source zlib
-- cd zlib-*
-- ./configure --prefix=$HOME/sources/libs/zlib
-- sudo make
-- sudo make install
 - apt-get -y source openssl
 - apt-get -y source libssh2
 - apt-get -y source curl
-- ls
+
+install:
+- cd $HOME/sources/zlib-*
+- ./configure --prefix=$HOME/sources/libs/zlib
+- sudo make
+- sudo make install
+- cd $HOME/sources/openssl-*
+- make clean
+- ./config no-asm --prefix=$HOME/sources/libs/openssl --openssldir=$HOME/sources/libs/openssl
+- sudo make
+- sudo make install
+- cd $HOME/sources/libssh2-*
+- ./configure --with-openssl --with-libssl-prefix=$HOME/sources/libs/openssl --with-libz --with-libz-prefix=$HOME/sources/libs/zlib --without-libgcrypt --enable-static --prefix=$HOME/sources/libs/libssh2
+- sudo make
+- sudo make install
+- cd $HOME/sources/curl-*
+- ./configure --with-ssl=$HOME/sources/libs/openssl --with-zlib=$HOME/sources/libs/zlib --with-libssh2=$HOME/sources/libs/libssh2 --disable-rtsp --disable-ldaps --disable-ldap --disable-sspi --without-libidn --enable-static --prefix=$HOME/sources/libs/curl
+- sudo make
+- sudo make install
