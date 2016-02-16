@@ -1,6 +1,4 @@
 language: cpp
-php:
-  - '5.6'
 sudo: required
 dist: trusty
 compiler:
@@ -14,11 +12,18 @@ before_install:
 - sudo apt-get -y build-dep openssl
 - sudo apt-get -y build-dep libssh2
 - sudo apt-get -y build-dep curl
-- sudo mkdir $HOME/sources
+- mkdir $HOME/sources
+- mkdir $HOME/libs
+- cd $HOME/libs
+- "sudo mkdir {zlib,openssl,libssh2,curl}"
 - cd $HOME/sources
-- sudo apt-get -y source zlib
-- sudo apt-get -y source openssl
-- sudo apt-get -y source libssh2
-- sudo apt-get -y source curl
+- export LIBS+=-ldl
+- apt-get -y source zlib
+- cd zlib-*
+- ./configure --prefix=$HOME/sources/libs/zlib
+- sudo make
+- sudo make install
+- apt-get -y source openssl
+- apt-get -y source libssh2
+- apt-get -y source curl
 - ls
-before_script: php depsetup.php
