@@ -59,5 +59,3 @@ install:
 script:
 - cd $HOME/sourcemod/extensions/sourcemod-curl-extension
 - make
-
-https://github.com/alliedmodders/sourcemod.git
