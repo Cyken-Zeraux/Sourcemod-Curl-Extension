@@ -14,6 +14,8 @@ before_install:
 - sudo apt-get -y build-dep libssh2
 - sudo apt-get -y build-dep curl
 - sudo apt-get -y install aria2
+- mkdir $HOME/sourcemod
+- mkdir $HOME/mmsource-1.10
 - mkdir $HOME/sources
 - mkdir $HOME/libs
 - cd $HOME/libs
@@ -47,8 +49,13 @@ install:
 - ./configure --with-ssl=$HOME/libs/openssl --with-zlib=$HOME/libs/zlib --with-libssh2=$HOME/libs/libssh2 --disable-rtsp --without-librtmp --disable-manual --disable-ldaps --disable-ldap --disable-sspi --without-libidn --enable-static --prefix=$HOME/libs/curl
 - make
 - make install
-
+- cd $HOME/sourcemod
+- git clone https://github.com/alliedmodders/sourcemod/tree/1.7-dev .
+- mkdir $HOME/sourcemod/extensions/sourcemod-curl-extension
+- cp -r $TRAVIS_BUILD_DIR $HOME/sourcemod/extensions/sourcemod-curl-extension
+- cd $HOME/mmsource-1.10
+- git clone https://github.com/alliedmodders/metamod-source/tree/1.10-dev .
 
 script:
-- cd $TRAVIS_BUILD_DIR
+- cd $HOME/sourcemod/extensions/sourcemod-curl-extension
 - make
