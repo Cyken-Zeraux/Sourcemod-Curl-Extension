@@ -21,8 +21,6 @@ before_install:
 - mkdir $HOME/libs
 - cd $HOME/libs
 - "mkdir {zlib,openssl,libssh2,curl}"
-- mkdir $HOME/libs/openssl/lib
-- mkdir $HOME/libs/openssl/lib/pkgconfig
 - cd $HOME/sources
 - apt-get -y source zlib
 - apt-get -y source openssl
@@ -40,9 +38,6 @@ install:
 - ./config -fPIC no-asm --prefix=$HOME/libs/openssl --openssldir=$HOME/libs/openssl
 - make
 - make install_sw
-- cp *.a $HOME/libs/openssl/lib
-- cp *.pc $HOME/libs/openssl/lib/pkgconfig
-- cp -r include $HOME/libs/openssl
 - cd $HOME/sources/libssh2-*
 - ./configure --with-openssl --with-libssl-prefix=$HOME/libs/openssl --with-libz --with-libz-prefix=$HOME/libs/zlib --without-libgcrypt --enable-static --prefix=$HOME/libs/libssh2
 - make
