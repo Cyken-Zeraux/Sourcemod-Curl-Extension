@@ -50,12 +50,14 @@ install:
 - make
 - make install
 - cd $HOME/sourcemod
-- git clone https://github.com/alliedmodders/sourcemod/tree/1.7-dev .
+- git clone -b 1.7-dev --single-branch https://github.com/alliedmodders/sourcemod.git .
 - mkdir $HOME/sourcemod/extensions/sourcemod-curl-extension
 - cp -r $TRAVIS_BUILD_DIR $HOME/sourcemod/extensions/sourcemod-curl-extension
 - cd $HOME/mmsource-1.10
-- git clone https://github.com/alliedmodders/metamod-source/tree/1.10-dev .
+- git clone -b 1.10-dev --single-branch https://github.com/alliedmodders/metamod-source.git .
 
 script:
 - cd $HOME/sourcemod/extensions/sourcemod-curl-extension
 - make
+
+https://github.com/alliedmodders/sourcemod.git
