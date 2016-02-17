@@ -39,6 +39,7 @@ install:
 - cd $HOME/sources/openssl-*
 - ./config -fPIC no-asm --prefix=$HOME/libs/openssl --openssldir=$HOME/libs/openssl
 - make
+- make install_sw
 - cp *.a $HOME/libs/openssl/lib
 - cp *.pc $HOME/libs/openssl/lib/pkgconfig
 - cp -r include $HOME/libs/openssl
