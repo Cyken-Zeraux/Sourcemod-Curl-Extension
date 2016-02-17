@@ -14,6 +14,7 @@ before_install:
 - sudo apt-get -y build-dep libssh2
 - sudo apt-get -y build-dep curl
 - sudo apt-get -y install aria2
+- sudo apt-get install gcc-multilib g++-multilib
 - mkdir $HOME/sourcemod
 - mkdir $HOME/mmsource-1.10
 - mkdir $HOME/sources
