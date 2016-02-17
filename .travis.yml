@@ -6,6 +6,7 @@ compiler:
 os:
 - linux
 before_install:
+- echo $TRAVIS_BUILD_DIR
 - sudo apt-get -qq update
 - sudo apt-get -y install build-essential
 - sudo apt-get -y build-dep zlib
