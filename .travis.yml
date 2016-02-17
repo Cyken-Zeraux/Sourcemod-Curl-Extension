@@ -46,4 +46,4 @@ install:
 - ./configure --with-ssl=$HOME/libs/openssl --with-zlib=$HOME/libs/zlib --with-libssh2=$HOME/libs/libssh2 --disable-rtsp --without-librtmp --disable-manual --disable-ldaps --disable-ldap --disable-sspi --without-libidn --enable-static --prefix=$HOME/libs/curl
 - make
 - make install
-- cd $HOME
+- cd $HOME/Sourcemod-Curl-Extension

@@ -2,8 +2,8 @@
 # Makefile written by David "BAILOPAN" Anderson
 
 SMSDK = ../..
-SRCDS_BASE = ~/srcds
-MMSOURCE17 = ../../../mmsource-central
+MMSOURCE19 = ../../../mmsource-1.10
+SOURCES = $(HOME)/sources
 
 #####################################
 ### EDIT BELOW FOR OTHER PROJECTS ###
@@ -34,18 +34,20 @@ CPP_GCC4_FLAGS = -fvisibility-inlines-hidden
 CPP = gcc
 
 
-METAMOD = $(MMSOURCE17)/core-legacy
+METAMOD = $(MMSOURCE19)/core
 
 INCLUDE += -I. -I.. -Isdk -I../ \
 	-I$(METAMOD)/sourcehook -I$(SMSDK)/public -I$(SMSDK)/public/extensions \
 	-I$(SMSDK)/public/sourcepawn \
-	-I/opt/Source/lib/openssl/include \
 
 CFLAGS += -DSE_EPISODEONE=1 -DSE_DARKMESSIAH=2 -DSE_ORANGEBOX=3 -DSE_ORANGEBOXVALVE=4 -DSE_LEFT4DEAD=5 -DSE_LEFT4DEAD2=6
 
 CFLAGS += -DCURL_STATIC_LIB
 
-LINK += -L./lib -lcurl -lrt -lssh2 -lssl -lcrypto -lz
+LINK += -L$(SOURCES)/lib/zlib/lib -lz
+LINK += -L$(SOURCES)/lib/curl/lib -lcurl
+LINK += -L$(SOURCES)/lib/openssl/lib -lrt -lcrypto -lssl
+LINK += -L$(SOURCES)/lib/libssh2/lib -lssh2
 
 LINK += -m32 -ldl -lm
 
@@ -53,7 +55,7 @@ CFLAGS += -D_LINUX -Dstricmp=strcasecmp -D_stricmp=strcasecmp -D_strnicmp=strnca
 	-D_snprintf=snprintf -D_vsnprintf=vsnprintf -D_alloca=alloca -Dstrcmpi=strcasecmp -Wall -Werror -Wno-switch \
 	-Wno-unused -mfpmath=sse -msse -DSOURCEMOD_BUILD -DHAVE_STDINT_H -m32
 
-CPPFLAGS += -Wno-non-virtual-dtor -fno-exceptions -fno-rtti -fno-threadsafe-statics
+CPPFLAGS += -Wno-error=delete-non-virtual-dtor -Wno-non-virtual-dtor -fno-exceptions -fno-rtti -fno-threadsafe-statics
 
 ################################################
 ### DO NOT EDIT BELOW HERE FOR MOST PROJECTS ###
