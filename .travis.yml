@@ -23,7 +23,7 @@ before_install:
 - apt-get -y source zlib
 - apt-get -y source openssl
 - apt-get -y source libssh2
-- aria2c -V https://curl.haxx.se/metalink.cgi?curl=tar.gz
+- aria2c -V http://curl.haxx.se/metalink.cgi?curl=tar.gz
 - tar -xvf curl-*.tar.gz
 
 install:
