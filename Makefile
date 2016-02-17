@@ -4,6 +4,8 @@
 SMSDK = ../..
 MMSOURCE19 = ../../../mmsource-1.10
 SOURCES = $(HOME)/sources
+LIBS = $(HOME)/libs
+
 
 #####################################
 ### EDIT BELOW FOR OTHER PROJECTS ###
@@ -39,23 +41,24 @@ METAMOD = $(MMSOURCE19)/core
 INCLUDE += -I. -I.. -Isdk -I../ \
 	-I$(METAMOD)/sourcehook -I$(SMSDK)/public -I$(SMSDK)/public/extensions \
 	-I$(SMSDK)/public/sourcepawn \
+	-I$(LIBS)/openssl/include \
+	-I$(LIBS)/curl/include \
 
 CFLAGS += -DSE_EPISODEONE=1 -DSE_DARKMESSIAH=2 -DSE_ORANGEBOX=3 -DSE_ORANGEBOXVALVE=4 -DSE_LEFT4DEAD=5 -DSE_LEFT4DEAD2=6
 
 CFLAGS += -DCURL_STATIC_LIB
 
-LINK += -L$(SOURCES)/lib/zlib/lib -lz
-LINK += -L$(SOURCES)/lib/curl/lib -lcurl
-LINK += -L$(SOURCES)/lib/openssl/lib -lrt -lcrypto -lssl
-LINK += -L$(SOURCES)/lib/libssh2/lib -lssh2
-
+LINK += -L$(LIBS)/zlib/lib -lz
+LINK += -L$(LIBS)/curl/lib -lcurl
+LINK += -L$(LIBS)/openssl/lib -lrt -lcrypto -lssl
+LINK += -L$(LIBS)/libssh2/lib -lssh2
 LINK += -m32 -ldl -lm
 
 CFLAGS += -D_LINUX -Dstricmp=strcasecmp -D_stricmp=strcasecmp -D_strnicmp=strncasecmp -Dstrnicmp=strncasecmp \
 	-D_snprintf=snprintf -D_vsnprintf=vsnprintf -D_alloca=alloca -Dstrcmpi=strcasecmp -Wall -Werror -Wno-switch \
 	-Wno-unused -mfpmath=sse -msse -DSOURCEMOD_BUILD -DHAVE_STDINT_H -m32
 
-CPPFLAGS += -Wno-error=delete-non-virtual-dtor -Wno-non-virtual-dtor -fno-exceptions -fno-rtti -fno-threadsafe-statics
+CPPFLAGS += -Wno-error=delete-non-virtual-dtor -fno-exceptions -fno-rtti -fno-threadsafe-statics
 
 ################################################
 ### DO NOT EDIT BELOW HERE FOR MOST PROJECTS ###
