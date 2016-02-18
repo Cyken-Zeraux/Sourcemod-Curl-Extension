@@ -2,14 +2,12 @@
 #include <openssl/crypto.h>
 #include <openssl/md5.h>
 #include <openssl/md4.h>
-#include <openssl/md2.h>
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>
 
 
 #define	MD5_FILE_BUFFER_SIZE		1024*16
 #define	MD4_FILE_BUFFER_SIZE		1024*16
-#define	MD2_FILE_BUFFER_SIZE		1024*16
 #define SHA_FILE_BUFFER_SIZE		1024*16
 #define SHA1_FILE_BUFFER_SIZE		1024*16
 #define SHA224_FILE_BUFFER_SIZE		1024*16
@@ -61,26 +59,6 @@ static void MD4_File(FILE *file, unsigned char **output, int *outlength)
 		MD4_Update(&c,buf,(unsigned long)i);
 	}
 	MD4_Final(*output, &c);
-}
-
-static void MD2_File(FILE *file, unsigned char **output, int *outlength)
-{
-	*output = new unsigned char[MD2_DIGEST_LENGTH];
-	*outlength = MD2_DIGEST_LENGTH;
-
-	MD2_CTX c;
-	int i;
-	unsigned char buf[MD2_FILE_BUFFER_SIZE];
-	
-	MD2_Init(&c);
-	for (;;)
-	{
-		i = fread(buf,1,MD2_FILE_BUFFER_SIZE,file);
-		if(i <= 0)
-			break;
-		MD2_Update(&c,buf,(unsigned long)i);
-	}
-	MD2_Final(*output, &c);
 }
 
 static void SHA_File(FILE *file, unsigned char **output, int *outlength)
@@ -281,9 +259,6 @@ bool OpensslManager::HashFile(Openssl_Hash algorithm, FILE *pFile, unsigned char
 		case Openssl_Hash_MD4:
 			MD4_File(pFile, output, outlength);
 			return true;
-		case Openssl_Hash_MD2:
-			MD2_File(pFile, output, outlength);
-			return true;
 		case Openssl_Hash_SHA:
 			SHA_File(pFile, output, outlength);
 			return true;
@@ -322,10 +297,6 @@ bool OpensslManager::HashString(Openssl_Hash algorithm, unsigned char *input, in
 		case Openssl_Hash_MD4:
 			MD4(input, size, output);
 			*outlength = MD4_DIGEST_LENGTH;
-			return true;
-		case Openssl_Hash_MD2:
-			MD2(input, size, output);
-			*outlength = MD2_DIGEST_LENGTH;
 			return true;
 		case Openssl_Hash_SHA:
 			SHA(input, size, output);

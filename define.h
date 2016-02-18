@@ -152,7 +152,6 @@ enum OpensslThread_Type {
 enum Openssl_Hash {
 	Openssl_Hash_MD5 = 0,
 	Openssl_Hash_MD4,
-	Openssl_Hash_MD2,
 	Openssl_Hash_SHA,
 	Openssl_Hash_SHA1,
 	Openssl_Hash_SHA224,
