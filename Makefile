@@ -48,11 +48,11 @@ CFLAGS += -DSE_EPISODEONE=1 -DSE_DARKMESSIAH=2 -DSE_ORANGEBOX=3 -DSE_ORANGEBOXVA
 
 CFLAGS += -DCURL_STATIC_LIB
 
-LINK += -L$(LIBS)/zlib/lib  -lz
-LINK += -L$(LIBS)/curl/lib  -lcurl
-LINK += -L$(LIBS)/openssl/lib  -lrt -lcrypto -lssl
-LINK += -L$(LIBS)/libssh2/lib  -lssh2
-LINK +=  -ldl -lm
+LINK += -L$(LIBS)/zlib/lib  -m32 -lz
+LINK += -L$(LIBS)/curl/lib  -m32 -lcurl
+LINK += -L$(LIBS)/openssl/lib  -m32 -lrt -lcrypto -lssl
+LINK += -L$(LIBS)/libssh2/lib  -m32 -lssh2
+LINK +=  -m32 -ldl -lm
 
 CFLAGS += -m32 -D_LINUX -Dstricmp=strcasecmp -D_stricmp=strcasecmp -D_strnicmp=strncasecmp -Dstrnicmp=strncasecmp \
 	-D_snprintf=snprintf -D_vsnprintf=vsnprintf -D_alloca=alloca -Dstrcmpi=strcasecmp -Wall -Werror -Wno-switch \
