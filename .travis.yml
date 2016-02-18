@@ -13,6 +13,7 @@ before_install:
 - sudo apt-get -y build-dep openssl
 - sudo apt-get -y build-dep libssh2
 - sudo apt-get -y build-dep curl
+- sudo apt-get -y install git
 - sudo apt-get -y install aria2
 - sudo apt-get -y install gcc-multilib g++-multilib
 - mkdir $HOME/sourcemod
