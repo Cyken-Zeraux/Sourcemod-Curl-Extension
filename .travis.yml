@@ -33,19 +33,19 @@ install:
 - export CFLAGS=-m32
 - export CPPFLAGS=-m32
 - cd $HOME/sources/zlib-*
-- setarch i386 ./configure --prefix=$HOME/libs/zlib
-- setarch i386 make
+- prefix=$HOME/libs/zlib CFLAGS='-m32' ./configure 
+- make
 - make install
 - cd $HOME/sources/openssl-*
-- setarch i386 ./config -fPIC no-asm --prefix=$HOME/libs/openssl --openssldir=$HOME/libs/openssl -m32
-- setarch i386 make
+- setarch i386 ./Configure -fPIC  no-asm --prefix=$HOME/libs/openssl --openssldir=$HOME/libs/openssl -m32 linux-generic32
+- setarch i386 make CC="gcc -m32"
 - make install_sw
 - cd $HOME/sources/libssh2-*
-- setarch i386 ./configure --with-openssl --with-libssl-prefix=$HOME/libs/openssl --with-libz --with-libz-prefix=$HOME/libs/zlib --without-libgcrypt --enable-static --prefix=$HOME/libs/libssh2
+- setarch i386 ./configure CFLAGS='-m32' CXXFLAGS='-m32' --with-openssl --with-libssl-prefix=$HOME/libs/openssl --with-libz --with-libz-prefix=$HOME/libs/zlib --without-libgcrypt --enable-static --prefix=$HOME/libs/libssh2
 - setarch i386 make
 - make install
 - cd $HOME/sources/curl-*
-- setarch i386 ./configure --with-ssl=$HOME/libs/openssl --with-zlib=$HOME/libs/zlib --with-libssh2=$HOME/libs/libssh2 --disable-rtsp --without-librtmp --disable-manual --disable-ldaps --disable-ldap --disable-sspi --without-libidn --enable-static --prefix=$HOME/libs/curl
+- setarch i386 ./configure CFLAGS='-m32' CXXFLAGS='-m32' --with-ssl=$HOME/libs/openssl --with-zlib=$HOME/libs/zlib --with-libssh2=$HOME/libs/libssh2 --disable-rtsp --without-librtmp --disable-manual --disable-ldaps --disable-ldap --disable-sspi --without-libidn --enable-static --prefix=$HOME/libs/curl
 - setarch i386 make
 - make install
 - cd $HOME/sourcemod
@@ -56,4 +56,4 @@ install:
 
 script:
 - cd $HOME/sourcemod/extensions/Sourcemod-Curl-Extension
-- setarch i386 make
+- setarch i386 make CFLAGS='-m32'
